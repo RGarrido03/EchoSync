@@ -1,5 +1,11 @@
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:echosync/pages/tabs/devices.dart';
+import 'package:echosync/pages/tabs/home.dart';
+import 'package:echosync/pages/tabs/library.dart';
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
+
+import 'navigation/nav_item.dart';
 
 void main() {
   runApp(const MyApp());
@@ -43,34 +49,49 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  int currentPageIndex = 0;
 
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
+  List<NavItem> navItems = [
+    NavItem(label: 'Home', icon: Symbols.home_rounded),
+    NavItem(label: 'Library', icon: Symbols.library_music_rounded),
+    NavItem(label: 'Devices', icon: Symbols.phone_rounded),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
+      appBar: AppBar(title: Text("EchoSync")),
+      bottomNavigationBar: NavigationBar(
+        onDestinationSelected: (int index) {
+          setState(() {
+            currentPageIndex = index;
+          });
+        },
+        selectedIndex: currentPageIndex,
+        destinations:
+            navItems
+                .map(
+                  (item) => NavigationDestination(
+                    selectedIcon: Icon(item.icon, fill: 1),
+                    icon: Icon(item.icon),
+                    label: item.label,
+                  ),
+                )
+                .toList(),
+      ),
+      body: Padding(
+        padding: EdgeInsets.only(top: 8),
+        child:
+            const <Widget>[
+              HomeTab(),
+              LibraryTab(),
+              DevicesTab(),
+            ][currentPageIndex],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+        onPressed: () {},
+        tooltip: 'Player',
+        child: const Icon(Symbols.play_arrow_rounded),
       ),
     );
   }
