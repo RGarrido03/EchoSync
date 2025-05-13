@@ -2,8 +2,14 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:echosync/pages/tabs/devices.dart';
 import 'package:echosync/pages/tabs/home.dart';
 import 'package:echosync/pages/tabs/library.dart';
+import 'package:echosync/services/mesh_network.dart';
+import 'package:echosync/services/playback_controller.dart';
+import 'package:echosync/services/qr_connection.dart';
+import 'package:echosync/services/sensor_controls.dart';
+import 'package:echosync/services/time_sync_service.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:provider/provider.dart';
 
 import 'navigation/nav_item.dart';
 
@@ -16,27 +22,64 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DynamicColorBuilder(
-      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        return MaterialApp(
-          title: 'EchoSync',
-          theme: ThemeData(
-            iconTheme: const IconThemeData(weight: 600),
-            colorScheme:
-                lightDynamic ?? ColorScheme.fromSeed(seedColor: Colors.orange),
-          ),
-          darkTheme: ThemeData(
-            iconTheme: const IconThemeData(weight: 600),
-            colorScheme:
-                darkDynamic ??
-                ColorScheme.fromSeed(
-                  seedColor: Colors.orange,
-                  brightness: Brightness.dark,
-                ),
-          ),
-          home: const MyHomePage(),
-        );
-      },
+    return MultiProvider(
+      providers: [
+        Provider(
+          create: (_) => MeshNetwork(),
+          dispose: (_, meshNetwork) => meshNetwork.dispose(),
+        ),
+        ProxyProvider<MeshNetwork, TimeSyncService>(
+          update:
+              (_, meshNetwork, __) => TimeSyncService(
+                deviceId: 'device_id', // Replace with actual device ID
+                sendMessage: meshNetwork.broadcast,
+              ),
+          dispose: (_, timeSync) => timeSync.dispose(),
+        ),
+        ProxyProvider2<MeshNetwork, TimeSyncService, PlaybackController>(
+          update:
+              (_, meshNetwork, timeSync, __) => PlaybackController(
+                meshNetwork: meshNetwork,
+                timeSync: timeSync,
+              ),
+          dispose: (_, controller) => controller.dispose(),
+        ),
+        ProxyProvider<PlaybackController, SensorControls>(
+          update:
+              (_, playbackController, __) =>
+                  SensorControls(playbackController: playbackController)
+                    ..initialize(),
+          dispose: (_, sensorControls) => sensorControls.dispose(),
+        ),
+        ProxyProvider<MeshNetwork, QRConnectionService>(
+          update:
+              (_, meshNetwork, __) =>
+                  QRConnectionService(meshNetwork: meshNetwork),
+        ),
+      ],
+      child: DynamicColorBuilder(
+        builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+          return MaterialApp(
+            title: 'EchoSync',
+            theme: ThemeData(
+              iconTheme: const IconThemeData(weight: 600),
+              colorScheme:
+                  lightDynamic ??
+                  ColorScheme.fromSeed(seedColor: Colors.orange),
+            ),
+            darkTheme: ThemeData(
+              iconTheme: const IconThemeData(weight: 600),
+              colorScheme:
+                  darkDynamic ??
+                  ColorScheme.fromSeed(
+                    seedColor: Colors.orange,
+                    brightness: Brightness.dark,
+                  ),
+            ),
+            home: const MyHomePage(),
+          );
+        },
+      ),
     );
   }
 }
