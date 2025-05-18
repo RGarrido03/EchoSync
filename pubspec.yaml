@@ -44,6 +44,8 @@ dependencies:
   qr_flutter: ^4.1.0
   qr_code_scanner_plus: ^2.0.10+1
   provider: ^6.1.5
+  network_info_plus: ^6.1.4
+  device_info_plus: ^11.4.0
 
 dev_dependencies:
   flutter_test:

@@ -1,10 +1,12 @@
-// lib/services/time_sync_service.dart
+// lib/services/time_sync.dart
 import 'dart:async';
 import 'dart:math';
 
+import 'device_info.dart';
+
 class TimeSyncService {
   final Function(Map<String, dynamic>) sendMessage;
-  final String deviceId;
+  final DeviceInfoService _deviceInfoService = DeviceInfoService();
   bool _isLeader = false;
 
   // Clock offset relative to leader (in milliseconds)
@@ -16,7 +18,7 @@ class TimeSyncService {
   // For followers: store sync requests for calculation
   final Map<int, int> _pendingSyncRequests = {};
 
-  TimeSyncService({required this.deviceId, required this.sendMessage});
+  TimeSyncService({required this.sendMessage});
 
   void setAsLeader() {
     _isLeader = true;
@@ -139,7 +141,7 @@ class TimeSyncService {
       'sync_type': 'request',
       'request_id': requestId,
       'request_time': requestTime,
-      'sender_id': deviceId,
+      'sender_id': _deviceInfoService.deviceIP,
     });
   }
 

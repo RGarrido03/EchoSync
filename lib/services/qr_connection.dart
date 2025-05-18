@@ -1,6 +1,7 @@
 // lib/services/qr_connection.dart
 import 'dart:convert';
 
+import 'package:echosync/services/device_info.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -9,60 +10,34 @@ import 'mesh_network.dart';
 
 class QRConnectionService {
   final MeshNetwork _meshNetwork;
+  final DeviceInfoService _deviceInfoService = DeviceInfoService();
 
   QRConnectionService({required MeshNetwork meshNetwork})
     : _meshNetwork = meshNetwork;
 
-  // Generate QR code for this device
-  Widget generateQRCode(String deviceId, Size size) {
-    final Map<String, dynamic> data = {
-      'device_id': deviceId,
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
-    };
-
-    final String qrData = json.encode(data);
-
+  Future<Widget> generateQRCode(Size size) async {
     return QrImageView(
-      data: qrData,
+      data: jsonEncode((await _deviceInfoService.deviceQrData).toJson()),
       version: QrVersions.auto,
       size: size.width * 0.8,
       backgroundColor: Colors.white,
     );
   }
 
-  // Process scanned QR code
-  Future<bool> processScannedQR(String scannedData) async {
-    try {
-      final Map<String, dynamic> data = json.decode(scannedData);
-
-      if (data.containsKey('device_id')) {
-        final String deviceId = data['device_id'];
-
-        // Use the device ID to establish connection through Nearby
-        // This is a placeholder for the actual connection logic
-        // You would use this ID to initiate a connection with the specific device
-
-        return true;
-      }
-      return false;
-    } catch (e) {
-      print('Error processing QR code: $e');
-      return false;
-    }
-  }
-
-  // QR Scanner Widget
-  Widget buildQRScanner(Function(String) onScan) {
+  static Widget buildQrScanner(Function(String) onScan) {
     return QRView(
       key: GlobalKey(debugLabel: 'QR'),
-      onQRViewCreated: (QRViewController controller) {
-        controller.scannedDataStream.listen((scanData) {
-          if (scanData.code != null) {
-            onScan(scanData.code!);
-            controller.dispose();
-          }
+      onQRViewCreated: (controller) {
+        controller.scannedDataStream.listen((data) {
+          onScan(data.code ?? '');
         });
       },
+      overlay: QrScannerOverlayShape(
+        borderColor: Colors.blue,
+        borderRadius: 10,
+        borderWidth: 5,
+        cutOutSize: 300,
+      ),
     );
   }
 }

@@ -6,7 +6,7 @@ import 'package:echosync/services/mesh_network.dart';
 import 'package:echosync/services/playback_controller.dart';
 import 'package:echosync/services/qr_connection.dart';
 import 'package:echosync/services/sensor_controls.dart';
-import 'package:echosync/services/time_sync_service.dart';
+import 'package:echosync/services/time_sync.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
@@ -30,10 +30,8 @@ class MyApp extends StatelessWidget {
         ),
         ProxyProvider<MeshNetwork, TimeSyncService>(
           update:
-              (_, meshNetwork, __) => TimeSyncService(
-                deviceId: 'device_id', // Replace with actual device ID
-                sendMessage: meshNetwork.broadcast,
-              ),
+              (_, meshNetwork, __) =>
+                  TimeSyncService(sendMessage: meshNetwork.broadcast),
           dispose: (_, timeSync) => timeSync.dispose(),
         ),
         ProxyProvider2<MeshNetwork, TimeSyncService, PlaybackController>(

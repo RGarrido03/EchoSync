@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 import 'mesh_network.dart';
-import 'time_sync_service.dart';
+import 'time_sync.dart';
 
 enum PlaybackRole { leader, follower }
 
