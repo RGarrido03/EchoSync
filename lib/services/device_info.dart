@@ -24,7 +24,7 @@ class DeviceInfoService {
     }
   }
 
-  Future<Device> get deviceQrData async {
+  Future<Device> get deviceInfo async {
     return Device(ip: await deviceIP, name: await deviceName);
   }
 }

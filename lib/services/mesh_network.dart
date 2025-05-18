@@ -1,186 +1,238 @@
-// lib/services/mesh_network.dart
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
-import 'package:nearby_connections/nearby_connections.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:uuid/uuid.dart';
+import 'package:echosync/data/device.dart';
+import 'package:mqtt_client/mqtt_client.dart';
+import 'package:mqtt_client/mqtt_server_client.dart';
+
+import 'device_info.dart';
 
 class MeshNetwork {
-  static const String _serviceId = 'com.musicmesh.service';
-  final Nearby _nearby = Nearby();
-  final String _deviceId = Uuid().v4();
-  final Map<String, String> _connectedDevices = {};
+  late final Device _device;
+  final DeviceInfoService _deviceInfoService = DeviceInfoService();
+  final Map<String, Device> _connectedDevices = {};
 
-  // Stream controllers for network events
-  final _connectionStateController =
-      StreamController<Map<String, dynamic>>.broadcast();
-  final _messageController = StreamController<Map<String, dynamic>>.broadcast();
+  late MqttServerClient _client;
+  bool _isConnected = false;
 
-  // Streams for UI to listen to
-  Stream<Map<String, dynamic>> get connectionStream =>
-      _connectionStateController.stream;
+  static const String _baseTopic = 'echosync';
+  late final String _deviceTopic;
+  late final String _statusTopic;
+  static const String _playbackTopic = '$_baseTopic/playback';
+  static const String _queueTopic = '$_baseTopic/queue';
 
-  Stream<Map<String, dynamic>> get messageStream => _messageController.stream;
-
-  // Initialization
-  Future<bool> initialize() async {
-    final permissions = [
-      Permission.location,
-      Permission.bluetoothScan,
-      Permission.bluetoothConnect,
-      Permission.bluetoothAdvertise,
-      Permission.nearbyWifiDevices,
-    ];
-
-    for (var permission in permissions) {
-      if (!await permission.isGranted) {
-        final status = await permission.request();
-        if (!status.isGranted) return false;
-      }
-    }
-
-    return true;
-  }
-
-  // Start advertising this device
-  Future<void> startAdvertising() async {
-    try {
-      await _nearby.startAdvertising(
-        _deviceId,
-        Strategy.P2P_CLUSTER,
-        onConnectionInitiated: _onConnectionInitiated,
-        onConnectionResult: _onConnectionResult,
-        onDisconnected: _onDisconnected,
-        serviceId: _serviceId,
-      );
-    } catch (e) {
-      _connectionStateController.add({
-        'type': 'error',
-        'message': 'Failed to start advertising: $e',
-      });
-    }
-  }
-
-  // Start discovering other devices
-  Future<void> startDiscovery() async {
-    try {
-      await _nearby.startDiscovery(
-        _deviceId,
-        Strategy.P2P_CLUSTER,
-        onEndpointFound: _onEndpointFound,
-        onEndpointLost: _onEndpointLost,
-        serviceId: _serviceId,
-      );
-    } catch (e) {
-      _connectionStateController.add({
-        'type': 'error',
-        'message': 'Failed to start discovery: $e',
-      });
-    }
-  }
-
-  // Handle new connection request
-  void _onConnectionInitiated(
-    String endpointId,
-    ConnectionInfo connectionInfo,
-  ) {
-    _nearby.acceptConnection(
-      endpointId,
-      onPayLoadRecieved:
-          (endpointId, payload) => _onPayloadReceived(endpointId, payload),
-      onPayloadTransferUpdate: (endpointId, update) {},
-    );
-  }
-
-  // Handle successful connection
-  void _onConnectionResult(String endpointId, Status status) {
-    if (status == Status.CONNECTED) {
-      _connectedDevices[endpointId] = endpointId;
-      _connectionStateController.add({
-        'type': 'connected',
-        'deviceId': endpointId,
-      });
-    }
-  }
-
-  // Handle disconnection
-  void _onDisconnected(String endpointId) {
-    _connectedDevices.remove(endpointId);
-    _connectionStateController.add({
-      'type': 'disconnected',
-      'deviceId': endpointId,
+  MeshNetwork() {
+    _deviceInfoService.deviceInfo.then((device) {
+      _device = device;
+      _deviceTopic = '$_baseTopic/device/${_device.ip}';
+      _statusTopic = '$_baseTopic/status/${_device.ip}';
+      _setupMqttClient();
     });
   }
 
-  // Handle discovered endpoint
-  void _onEndpointFound(
-    String endpointId,
-    String endpointName,
-    String serviceId,
-  ) {
-    _nearby.requestConnection(
-      _deviceId,
-      endpointId,
-      onConnectionInitiated: _onConnectionInitiated,
-      onConnectionResult: _onConnectionResult,
-      onDisconnected: _onDisconnected,
+  void _setupMqttClient() {
+    _client = MqttServerClient('broker.hivemq.com', _device.ip);
+    _client.port = 1883;
+    _client.keepAlivePeriod = 20;
+    _client.autoReconnect = true;
+
+    _client.onConnected = _onConnected;
+    _client.onDisconnected = _onDisconnected;
+    _client.onSubscribed = (topic) => print("Subscribed to $topic");
+    _client.onSubscribeFail = (topic) => print("Failed to subscribe to $topic");
+    _client.pongCallback = () => print('Ping response received');
+
+    _client.updates?.listen(_onMessageReceived);
+  }
+
+  Future<void> connect() async {
+    if (_isConnected) return;
+    _client.connectionMessage =
+        MqttConnectMessage()
+            .withClientIdentifier(_device.ip)
+            .startClean()
+            .withWillTopic(_statusTopic)
+            .withWillMessage('offline')
+            .withWillQos(MqttQos.atLeastOnce)
+            .withWillRetain();
+
+    await _client.connect();
+    if (_client.connectionStatus!.state != MqttConnectionState.connected) {
+      print('Failed to connect to MQTT broker');
+    }
+  }
+
+  Future<void> _publishDeviceInfo() async {
+    final builder = MqttClientPayloadBuilder();
+    builder.addString(jsonEncode(_device.toJson()));
+
+    _client.publishMessage(
+      _deviceTopic,
+      MqttQos.atLeastOnce,
+      builder.payload!,
+      retain: true,
     );
   }
 
-  // Handle lost endpoint
-  void _onEndpointLost(String? endpointId) {
-    _connectionStateController.add({
-      'type': 'endpoint_lost',
-      'deviceId': endpointId,
-    });
+  // Connection callback
+  void _onConnected() async {
+    _isConnected = true;
+    print('Connected to MQTT broker');
+    await _publishDeviceInfo();
+    _client.subscribe('$_baseTopic/device/#', MqttQos.atLeastOnce);
+    _client.subscribe('$_baseTopic/status/#', MqttQos.atLeastOnce);
+    _client.subscribe(_playbackTopic, MqttQos.atLeastOnce);
+    _client.subscribe(_queueTopic, MqttQos.atLeastOnce);
   }
 
-  // Handle received payload
-  void _onPayloadReceived(String endpointId, Payload payload) {
-    if (payload.type == PayloadType.BYTES) {
-      final String message = String.fromCharCodes(payload.bytes!);
-      final Map<String, dynamic> data = json.decode(message);
+  void _onDisconnected() {
+    print('Disconnected from MQTT broker');
+    _isConnected = false;
+    _connectedDevices.clear();
+  }
 
-      data['senderId'] = endpointId;
-      _messageController.add(data);
+  void _onMessageReceived(List<MqttReceivedMessage<MqttMessage>>? c) {
+    if (c == null || c.isEmpty) return;
+
+    final MqttPublishMessage recMess = c[0].payload as MqttPublishMessage;
+    final String topic = c[0].topic;
+    final String payload = MqttPublishPayload.bytesToStringAsString(
+      recMess.payload.message,
+    );
+    final Map<String, dynamic> data = jsonDecode(payload);
+    if (topic.startsWith('$_baseTopic/status/')) {
+      _handleDeviceStatus(topic, payload);
+    } else if (topic.startsWith('$_baseTopic/device/')) {
+      _handleDeviceAdd(topic, data);
+    }
+  }
+
+  void _handleDeviceStatus(String topic, String data) {
+    final deviceIp = topic.split('/').last;
+    if (deviceIp == _device.ip) return;
+    if (data != 'offline') return;
+    _connectedDevices.remove(deviceIp);
+  }
+
+  void _handleDeviceAdd(String topic, Map<String, dynamic> data) {
+    final deviceIp = topic.split('/').last;
+    if (deviceIp == _device.ip) return;
+    _connectedDevices[deviceIp] = Device.fromJson(data);
+  }
+
+  void _handleAppMessage(Map<String, dynamic> data) {
+    if (!data.containsKey('senderId')) {
+      data['senderId'] = data['sender_id'] ?? 'unknown';
     }
   }
 
   // Send message to specific device
   Future<bool> sendToDevice(
-    String endpointId,
+    String deviceId,
     Map<String, dynamic> message,
   ) async {
+    if (!_isConnected) return false;
+
     try {
-      final bytes = Uint8List.fromList(utf8.encode(json.encode(message)));
-      await _nearby.sendBytesPayload(endpointId, bytes);
+      // Add sender information
+      message['senderId'] = _device.ip;
+      message['senderName'] = _device.name;
+
+      final builder = MqttClientPayloadBuilder();
+      builder.addString(json.encode(message));
+
+      _client.publishMessage(
+        '$_baseTopic/device/$deviceId',
+        MqttQos.atLeastOnce,
+        builder.payload!,
+      );
       return true;
     } catch (e) {
+      print('Error sending message: $e');
       return false;
     }
   }
 
-  // Broadcast message to all connected devices
-  Future<void> broadcast(Map<String, dynamic> message) async {
-    for (String endpointId in _connectedDevices.keys) {
-      await sendToDevice(endpointId, message);
+  // Create or join a specific session
+  Future<bool> joinSession(String sessionId) async {
+    if (!_isConnected) return false;
+
+    try {
+      // Subscribe to session-specific topics
+      _client.subscribe('$_baseTopic/session/$sessionId', MqttQos.atLeastOnce);
+
+      // Announce joining the session
+      final message = {
+        'type': 'join_session',
+        'sessionId': sessionId,
+        'deviceId': _device.ip,
+        'deviceName': _device.name,
+      };
+
+      final builder = MqttClientPayloadBuilder();
+      builder.addString(json.encode(message));
+
+      _client.publishMessage(
+        '$_baseTopic/session/$sessionId',
+        MqttQos.atLeastOnce,
+        builder.payload!,
+      );
+      return true;
+    } catch (e) {
+      print('Error joining session: $e');
+      return false;
     }
   }
 
-  // Stop advertising and discovery
-  Future<void> stop() async {
-    await _nearby.stopAdvertising();
-    await _nearby.stopDiscovery();
-    await _nearby.stopAllEndpoints();
-    _connectedDevices.clear();
+  // Leave a session
+  Future<void> leaveSession(String sessionId) async {
+    if (!_isConnected) return;
+
+    try {
+      // Announce leaving the session
+      final message = {
+        'type': 'leave_session',
+        'sessionId': sessionId,
+        'deviceId': _device.ip,
+      };
+
+      final builder = MqttClientPayloadBuilder();
+      builder.addString(json.encode(message));
+
+      _client.publishMessage(
+        '$_baseTopic/session/$sessionId',
+        MqttQos.atLeastOnce,
+        builder.payload!,
+      );
+
+      // Unsubscribe from session
+      _client.unsubscribe('$_baseTopic/session/$sessionId');
+    } catch (e) {
+      print('Error leaving session: $e');
+    }
   }
 
-  // Cleanup resources
+  Future<void> disconnect() async {
+    if (!_isConnected) {
+      return;
+    }
+
+    final builder = MqttClientPayloadBuilder();
+    builder.addString('offline');
+
+    _client.publishMessage(
+      '$_baseTopic/status/${_device.ip}',
+      MqttQos.atLeastOnce,
+      builder.payload!,
+      retain: true,
+    );
+    _client.disconnect();
+  }
+
+  // Clean up resources
   void dispose() {
+    disconnect();
     _connectionStateController.close();
     _messageController.close();
-    stop();
   }
 }

@@ -46,6 +46,7 @@ dependencies:
   provider: ^6.1.5
   network_info_plus: ^6.1.4
   device_info_plus: ^11.4.0
+  mqtt_client: ^10.8.0
 
 dev_dependencies:
   flutter_test:

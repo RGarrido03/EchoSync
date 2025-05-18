@@ -20,7 +20,8 @@ class ControlMessage {
   });
 
   Map<String, dynamic> toJson() => {
-    'type': type.toString(),
+    'message': 'control',
+    'type': type.name,
     'trackId': trackId,
     'volumeLevel': volumeLevel,
   };

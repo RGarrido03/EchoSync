@@ -5,7 +5,11 @@ class AddMusicMessage {
   AddMusicMessage({required this.musicId, required this.sourceLocation});
 
   Map<String, dynamic> toJson() {
-    return {'musicId': musicId, 'sourceLocation': sourceLocation};
+    return {
+      'message': 'addMusic',
+      'musicId': musicId,
+      'sourceLocation': sourceLocation,
+    };
   }
 
   factory AddMusicMessage.fromJson(Map<String, dynamic> json) {

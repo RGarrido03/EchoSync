@@ -50,9 +50,7 @@ class MyApp extends StatelessWidget {
           dispose: (_, sensorControls) => sensorControls.dispose(),
         ),
         ProxyProvider<MeshNetwork, QRConnectionService>(
-          update:
-              (_, meshNetwork, __) =>
-                  QRConnectionService(meshNetwork: meshNetwork),
+          update: (_, meshNetwork, __) => QRConnectionService(),
         ),
       ],
       child: DynamicColorBuilder(

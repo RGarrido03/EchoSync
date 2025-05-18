@@ -6,18 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import 'mesh_network.dart';
-
 class QRConnectionService {
-  final MeshNetwork _meshNetwork;
   final DeviceInfoService _deviceInfoService = DeviceInfoService();
 
-  QRConnectionService({required MeshNetwork meshNetwork})
-    : _meshNetwork = meshNetwork;
+  QRConnectionService();
 
   Future<Widget> generateQRCode(Size size) async {
     return QrImageView(
-      data: jsonEncode((await _deviceInfoService.deviceQrData).toJson()),
+      data: jsonEncode((await _deviceInfoService.deviceInfo).toJson()),
       version: QrVersions.auto,
       size: size.width * 0.8,
       backgroundColor: Colors.white,

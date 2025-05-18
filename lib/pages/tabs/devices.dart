@@ -33,33 +33,23 @@ class DevicesTabState extends State<DevicesTab> {
 
   Future<void> _generateQrData() async {
     final data =
-        await Provider.of<DeviceInfoService>(
-          context,
-          listen: false,
-        ).deviceQrData;
+        await Provider.of<DeviceInfoService>(context, listen: false).deviceInfo;
     setState(() => _qrData = data);
   }
 
   void _handleQrScan(String data) {
-    final parsed = QRConnectionService.parseQrData(data);
-    if (parsed.containsKey('error')) {
-      setState(() => _connectionStatus = 'Invalid QR code');
-      return;
-    }
-
+    final parsed = Device.fromJson(jsonDecode(data));
     _connectToDevice(parsed);
   }
 
-  Future<void> _connectToDevice(Map<String, dynamic> deviceData) async {
+  Future<void> _connectToDevice(Device device) async {
     final meshNetwork = Provider.of<MeshNetwork>(context, listen: false);
-    setState(
-      () => _connectionStatus = 'Connecting to ${deviceData['name']}...',
-    );
+    setState(() => _connectionStatus = 'Connecting to ${device.name}...');
 
-    final success = await meshNetwork.connectViaWiFi(deviceData['ip']);
+    final success = await meshNetwork.connectViaWiFi(device.ip);
 
     if (success) {
-      setState(() => _connectionStatus = 'Connected to ${deviceData['name']}!');
+      setState(() => _connectionStatus = 'Connected to ${device.name}!');
       Navigator.pushReplacementNamed(context, '/player');
     } else {
       setState(() => _connectionStatus = 'Connection failed');
@@ -101,7 +91,7 @@ class DevicesTabState extends State<DevicesTab> {
                     setState(() {
                       _isScanning = false;
                     });
-                    Device.fromJson(jsonDecode(code));
+                    _handleQrScan(code);
                   }),
                 ),
 
