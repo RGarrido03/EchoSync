@@ -26,7 +26,7 @@ class MyApp extends StatelessWidget {
       providers: [
         Provider(
           create: (_) => MeshNetwork(),
-          dispose: (_, meshNetwork) => meshNetwork.dispose(),
+          dispose: (_, meshNetwork) => meshNetwork.disconnect(),
         ),
         ProxyProvider<MeshNetwork, TimeSyncService>(
           update:

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:echosync/data/device.dart';
+import 'package:echosync/data/protocol/queue.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 
@@ -103,7 +104,7 @@ class MeshNetwork {
     if (topic.startsWith('$_baseTopic/status/')) {
       _handleDeviceStatus(topic, payload);
     } else if (topic.startsWith('$_baseTopic/device/')) {
-      _handleDeviceAdd(topic, data);
+      _handleDeviceAdd(topic, Device.fromJson(data));
     }
   }
 
@@ -114,10 +115,17 @@ class MeshNetwork {
     _connectedDevices.remove(deviceIp);
   }
 
-  void _handleDeviceAdd(String topic, Map<String, dynamic> data) {
+  void _handleDeviceAdd(String topic, Device data) {
     final deviceIp = topic.split('/').last;
     if (deviceIp == _device.ip) return;
-    _connectedDevices[deviceIp] = Device.fromJson(data);
+    _connectedDevices[deviceIp] = data;
+  }
+
+  void _handleQueue(String topic, QueueMessage data) {
+    if (topic == _queueTopic) {
+      // Handle queue message
+      print('Queue message: $data');
+    }
   }
 
   void _handleAppMessage(Map<String, dynamic> data) {
@@ -134,7 +142,6 @@ class MeshNetwork {
     if (!_isConnected) return false;
 
     try {
-      // Add sender information
       message['senderId'] = _device.ip;
       message['senderName'] = _device.name;
 
@@ -153,65 +160,6 @@ class MeshNetwork {
     }
   }
 
-  // Create or join a specific session
-  Future<bool> joinSession(String sessionId) async {
-    if (!_isConnected) return false;
-
-    try {
-      // Subscribe to session-specific topics
-      _client.subscribe('$_baseTopic/session/$sessionId', MqttQos.atLeastOnce);
-
-      // Announce joining the session
-      final message = {
-        'type': 'join_session',
-        'sessionId': sessionId,
-        'deviceId': _device.ip,
-        'deviceName': _device.name,
-      };
-
-      final builder = MqttClientPayloadBuilder();
-      builder.addString(json.encode(message));
-
-      _client.publishMessage(
-        '$_baseTopic/session/$sessionId',
-        MqttQos.atLeastOnce,
-        builder.payload!,
-      );
-      return true;
-    } catch (e) {
-      print('Error joining session: $e');
-      return false;
-    }
-  }
-
-  // Leave a session
-  Future<void> leaveSession(String sessionId) async {
-    if (!_isConnected) return;
-
-    try {
-      // Announce leaving the session
-      final message = {
-        'type': 'leave_session',
-        'sessionId': sessionId,
-        'deviceId': _device.ip,
-      };
-
-      final builder = MqttClientPayloadBuilder();
-      builder.addString(json.encode(message));
-
-      _client.publishMessage(
-        '$_baseTopic/session/$sessionId',
-        MqttQos.atLeastOnce,
-        builder.payload!,
-      );
-
-      // Unsubscribe from session
-      _client.unsubscribe('$_baseTopic/session/$sessionId');
-    } catch (e) {
-      print('Error leaving session: $e');
-    }
-  }
-
   Future<void> disconnect() async {
     if (!_isConnected) {
       return;
@@ -227,12 +175,5 @@ class MeshNetwork {
       retain: true,
     );
     _client.disconnect();
-  }
-
-  // Clean up resources
-  void dispose() {
-    disconnect();
-    _connectionStateController.close();
-    _messageController.close();
   }
 }
