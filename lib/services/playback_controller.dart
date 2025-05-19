@@ -95,9 +95,6 @@ class PlaybackController extends ChangeNotifier {
       case 'update_playlist':
         _handlePlaylistUpdate(message);
         break;
-      case 'request_playlist':
-        _sendCurrentPlaylist(message['sender_id']);
-        break;
       case 'sync_state':
         _handleSyncState(message);
         break;
@@ -270,7 +267,7 @@ class PlaybackController extends ChangeNotifier {
       'position': position,
     };
 
-    _meshNetwork.broadcast(command);
+    _meshNetwork.sendMessage(MeshNetwork.playbackTopic, command);
     _handlePlayCommand(command);
   }
 
@@ -287,11 +284,10 @@ class PlaybackController extends ChangeNotifier {
       'scheduled_time': networkScheduledTime,
     };
 
-    _meshNetwork.broadcast(command);
+    _meshNetwork.sendMessage(MeshNetwork.playbackTopic, command);
     _handlePauseCommand(command);
   }
 
-  // Seek to position (leader only)
   void seekTo(Duration position) {
     if (_role != PlaybackRole.leader) return;
 
@@ -305,7 +301,7 @@ class PlaybackController extends ChangeNotifier {
       'position': position.inMilliseconds,
     };
 
-    _meshNetwork.broadcast(command);
+    _meshNetwork.sendMessage(MeshNetwork.playbackTopic, command);
     _handleSeekCommand(command);
   }
 
@@ -326,7 +322,7 @@ class PlaybackController extends ChangeNotifier {
       'song_index': nextIndex,
     };
 
-    _meshNetwork.broadcast(command);
+    _meshNetwork.sendMessage(MeshNetwork.playbackTopic, command);
     _handleNextCommand(command);
   }
 
@@ -347,7 +343,7 @@ class PlaybackController extends ChangeNotifier {
       'song_index': prevIndex,
     };
 
-    _meshNetwork.broadcast(command);
+    _meshNetwork.sendMessage(MeshNetwork.playbackTopic, command);
     _handlePreviousCommand(command);
   }
 
@@ -357,25 +353,15 @@ class PlaybackController extends ChangeNotifier {
 
     _playlist = playlist;
 
-    final command = {'command': 'update_playlist', 'playlist': playlist};
-
-    _meshNetwork.broadcast(command);
-  }
-
-  // Send current playlist to a specific device
-  void _sendCurrentPlaylist(String deviceId) {
-    if (_role != PlaybackRole.leader) return;
-
-    final state = {'command': 'update_playlist', 'playlist': _playlist};
-
-    _meshNetwork.sendToDevice(deviceId, state);
+    final command = {'command': 'update_playlist', 'playlist': _playlist};
+    _meshNetwork.sendMessage(MeshNetwork.queueTopic, command);
   }
 
   // Request current playlist (follower)
   void requestPlaylist() {
     if (_role == PlaybackRole.leader) return;
 
-    _meshNetwork.broadcast({
+    _meshNetwork.sendMessage(MeshNetwork.queueTopic, {
       'command': 'request_playlist',
       'sender_id': 'this_device_id', // Replace with actual device ID
     });
@@ -383,7 +369,7 @@ class PlaybackController extends ChangeNotifier {
 
   // Request current playback state (when joining)
   void requestSyncState() {
-    _meshNetwork.broadcast({
+    _meshNetwork.sendMessage(MeshNetwork.queueTopic, {
       'command': 'sync_state',
       'sender_id': 'this_device_id', // Replace with actual device ID
     });

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:echosync/data/device.dart';
+import 'package:echosync/data/protocol/control.dart';
 import 'package:echosync/data/protocol/queue.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
@@ -19,8 +20,8 @@ class MeshNetwork {
   static const String _baseTopic = 'echosync';
   late final String _deviceTopic;
   late final String _statusTopic;
-  static const String _playbackTopic = '$_baseTopic/playback';
-  static const String _queueTopic = '$_baseTopic/queue';
+  static const String playbackTopic = '$_baseTopic/playback';
+  static const String queueTopic = '$_baseTopic/queue';
 
   MeshNetwork() {
     _deviceInfoService.deviceInfo.then((device) {
@@ -63,6 +64,18 @@ class MeshNetwork {
     }
   }
 
+  Future<void> sendMessage(String topic, Map<String, dynamic> message) async {
+    if (!_isConnected) return;
+
+    try {
+      final builder = MqttClientPayloadBuilder();
+      builder.addString(json.encode(message));
+      _client.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
+    } catch (e) {
+      print('Error sending message: $e');
+    }
+  }
+
   Future<void> _publishDeviceInfo() async {
     final builder = MqttClientPayloadBuilder();
     builder.addString(jsonEncode(_device.toJson()));
@@ -82,8 +95,8 @@ class MeshNetwork {
     await _publishDeviceInfo();
     _client.subscribe('$_baseTopic/device/#', MqttQos.atLeastOnce);
     _client.subscribe('$_baseTopic/status/#', MqttQos.atLeastOnce);
-    _client.subscribe(_playbackTopic, MqttQos.atLeastOnce);
-    _client.subscribe(_queueTopic, MqttQos.atLeastOnce);
+    _client.subscribe(playbackTopic, MqttQos.atLeastOnce);
+    _client.subscribe(queueTopic, MqttQos.atLeastOnce);
   }
 
   void _onDisconnected() {
@@ -101,10 +114,15 @@ class MeshNetwork {
       recMess.payload.message,
     );
     final Map<String, dynamic> data = jsonDecode(payload);
+
     if (topic.startsWith('$_baseTopic/status/')) {
       _handleDeviceStatus(topic, payload);
     } else if (topic.startsWith('$_baseTopic/device/')) {
       _handleDeviceAdd(topic, Device.fromJson(data));
+    } else if (topic == playbackTopic) {
+      _handleControl(ControlMessage.fromJson(data));
+    } else if (topic == queueTopic) {
+      _handleQueue(QueueMessage.fromJson(data));
     }
   }
 
@@ -121,43 +139,12 @@ class MeshNetwork {
     _connectedDevices[deviceIp] = data;
   }
 
-  void _handleQueue(String topic, QueueMessage data) {
-    if (topic == _queueTopic) {
-      // Handle queue message
-      print('Queue message: $data');
-    }
+  void _handleQueue(QueueMessage data) {
+    print('Queue message: $data');
   }
 
-  void _handleAppMessage(Map<String, dynamic> data) {
-    if (!data.containsKey('senderId')) {
-      data['senderId'] = data['sender_id'] ?? 'unknown';
-    }
-  }
-
-  // Send message to specific device
-  Future<bool> sendToDevice(
-    String deviceId,
-    Map<String, dynamic> message,
-  ) async {
-    if (!_isConnected) return false;
-
-    try {
-      message['senderId'] = _device.ip;
-      message['senderName'] = _device.name;
-
-      final builder = MqttClientPayloadBuilder();
-      builder.addString(json.encode(message));
-
-      _client.publishMessage(
-        '$_baseTopic/device/$deviceId',
-        MqttQos.atLeastOnce,
-        builder.payload!,
-      );
-      return true;
-    } catch (e) {
-      print('Error sending message: $e');
-      return false;
-    }
+  void _handleControl(ControlMessage data) {
+    print('Control message: $data');
   }
 
   Future<void> disconnect() async {
