@@ -1,15 +1,31 @@
-enum QueueMessageType { moveUp, moveDown }
+import 'package:json_annotation/json_annotation.dart';
 
-class QueueMessage {
-  final QueueMessageType type;
+import 'base.dart';
 
-  QueueMessage({required this.type});
+part 'queue.g.dart';
 
-  Map<String, dynamic> toJson() {
-    return {'message': 'queue', 'type': type.name};
-  }
+@JsonSerializable()
+class UpdatePlaylistMessage extends SyncMessage {
+  final List<String> playlist;
 
-  factory QueueMessage.fromJson(Map<String, dynamic> json) {
-    return QueueMessage(type: json['type']);
-  }
+  const UpdatePlaylistMessage({required this.playlist})
+    : super('update_playlist');
+
+  factory UpdatePlaylistMessage.fromJson(Map<String, dynamic> json) =>
+      _$UpdatePlaylistMessageFromJson(json);
+
+  Map<String, dynamic> toJson() => _$UpdatePlaylistMessageToJson(this);
+}
+
+@JsonSerializable()
+class RequestPlaylistMessage extends SyncMessage {
+  final String senderId;
+
+  const RequestPlaylistMessage({required this.senderId})
+    : super('request_playlist');
+
+  factory RequestPlaylistMessage.fromJson(Map<String, dynamic> json) =>
+      _$RequestPlaylistMessageFromJson(json);
+
+  Map<String, dynamic> toJson() => _$RequestPlaylistMessageToJson(this);
 }
