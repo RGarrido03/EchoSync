@@ -31,8 +31,8 @@ class PlaybackController extends ChangeNotifier {
     required TimeSyncService timeSync,
   }) : _meshNetwork = meshNetwork,
        _timeSync = timeSync {
-    // Listen to network messages
-    _meshNetwork.messageStream.listen(_handleMessage);
+    // TODO: Listen to network messages
+    // _meshNetwork.messageStream.listen(_handleMessage);
 
     // Listen to playback state changes
     _audioPlayer.playerStateStream.listen((state) {
@@ -94,9 +94,6 @@ class PlaybackController extends ChangeNotifier {
         break;
       case 'update_playlist':
         _handlePlaylistUpdate(message);
-        break;
-      case 'sync_state':
-        _handleSyncState(message);
         break;
     }
   }
@@ -209,24 +206,6 @@ class PlaybackController extends ChangeNotifier {
   void _handlePlaylistUpdate(Map<String, dynamic> message) {
     _playlist = List<Map<String, dynamic>>.from(message['playlist']);
     notifyListeners();
-  }
-
-  // Handle sync state request (when a new device joins)
-  void _handleSyncState(Map<String, dynamic> message) {
-    // Only leader responds to sync state requests
-    if (_role != PlaybackRole.leader) return;
-
-    final state = {
-      'command': 'sync_state_response',
-      'playlist': _playlist,
-      'current_index': _currentIndex,
-      'is_playing': _isPlaying,
-      'position': _audioPlayer.position.inMilliseconds,
-      'current_song_id': _currentSongId,
-      'current_song_hash': _currentSongHash,
-    };
-
-    _meshNetwork.sendToDevice(message['sender_id'], state);
   }
 
   // Load a song by ID and hash

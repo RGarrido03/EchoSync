@@ -31,7 +31,7 @@ class MyApp extends StatelessWidget {
         ProxyProvider<MeshNetwork, TimeSyncService>(
           update:
               (_, meshNetwork, __) =>
-                  TimeSyncService(sendMessage: meshNetwork.broadcast),
+                  TimeSyncService(sendMessage: (a) => print("TODO COUNTER")),
           dispose: (_, timeSync) => timeSync.dispose(),
         ),
         ProxyProvider2<MeshNetwork, TimeSyncService, PlaybackController>(

@@ -23,11 +23,7 @@ class _HomeTabState extends State<HomeTab> {
 
   Future<void> _initializeServices() async {
     final meshNetwork = Provider.of<MeshNetwork>(context, listen: false);
-
-    final bool initialized = await meshNetwork.initialize();
-    setState(() {
-      _isInitialized = initialized;
-    });
+    await meshNetwork.connect();
   }
 
   @override

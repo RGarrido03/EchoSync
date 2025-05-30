@@ -2,8 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:echosync/data/device.dart';
-import 'package:echosync/data/protocol/control.dart';
-import 'package:echosync/data/protocol/queue.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 
@@ -119,10 +117,6 @@ class MeshNetwork {
       _handleDeviceStatus(topic, payload);
     } else if (topic.startsWith('$_baseTopic/device/')) {
       _handleDeviceAdd(topic, Device.fromJson(data));
-    } else if (topic == playbackTopic) {
-      _handleControl(ControlMessage.fromJson(data));
-    } else if (topic == queueTopic) {
-      _handleQueue(QueueMessage.fromJson(data));
     }
   }
 
@@ -137,14 +131,6 @@ class MeshNetwork {
     final deviceIp = topic.split('/').last;
     if (deviceIp == _device.ip) return;
     _connectedDevices[deviceIp] = data;
-  }
-
-  void _handleQueue(QueueMessage data) {
-    print('Queue message: $data');
-  }
-
-  void _handleControl(ControlMessage data) {
-    print('Control message: $data');
   }
 
   Future<void> disconnect() async {
