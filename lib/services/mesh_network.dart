@@ -5,11 +5,8 @@ import 'package:echosync/data/device.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 
-import 'device_info.dart';
-
 class MeshNetwork {
   late final Device _device;
-  final DeviceInfoService _deviceInfoService = DeviceInfoService();
   final Map<String, Device> _connectedDevices = {};
 
   late MqttServerClient _client;
@@ -21,13 +18,12 @@ class MeshNetwork {
   static const String playbackTopic = '$_baseTopic/playback';
   static const String queueTopic = '$_baseTopic/queue';
 
-  MeshNetwork() {
-    _deviceInfoService.deviceInfo.then((device) {
-      _device = device;
-      _deviceTopic = '$_baseTopic/device/${_device.ip}';
-      _statusTopic = '$_baseTopic/status/${_device.ip}';
-      _setupMqttClient();
-    });
+  MeshNetwork({required Device deviceInfo}) {
+    _device = deviceInfo;
+    _deviceTopic = '$_baseTopic/device/${_device.ip}';
+    _statusTopic = '$_baseTopic/status/${_device.ip}';
+    _setupMqttClient();
+    connect();
   }
 
   void _setupMqttClient() {
