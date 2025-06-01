@@ -2,12 +2,11 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:echosync/services/sync_manager.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
-import 'playback_controller.dart';
-
 class SensorControls {
-  final PlaybackController playbackController;
+  final SyncManager syncManager;
   StreamSubscription? _gyroscopeSubscription;
   StreamSubscription? _accelerometerSubscription;
   StreamSubscription? _proximitySubscription;
@@ -23,11 +22,13 @@ class SensorControls {
   // State tracking
   bool _isFlipped = false;
 
-  SensorControls({required this.playbackController});
+  SensorControls({required this.syncManager});
 
   void initialize() {
     // Listen to gyroscope for flip detection
-    _gyroscopeSubscription = gyroscopeEvents.listen((GyroscopeEvent event) {
+    _gyroscopeSubscription = gyroscopeEventStream().listen((
+      GyroscopeEvent event,
+    ) {
       // Check for flip gesture (rotation around X axis)
       if (event.x.abs() > _flipThreshold) {
         _handleFlipGesture(event.x > 0);
@@ -35,7 +36,7 @@ class SensorControls {
     });
 
     // Listen to accelerometer for shake detection
-    _accelerometerSubscription = accelerometerEvents.listen((
+    _accelerometerSubscription = accelerometerEventStream().listen((
       AccelerometerEvent event,
     ) {
       // Simple shake detection
@@ -43,22 +44,6 @@ class SensorControls {
         _handleShakeGesture();
       }
     });
-
-    // For proximity sensor, check if the device has this capability
-    // This is a simplified approach and may need device-specific handling
-    /*
-    if (hasProximitySensor) {
-      _proximitySubscription = proximityEvents.listen((ProximityEvent event) {
-        final bool isNear = event.distance < 5; // typically in cm
-        if (isNear != _isNearby) {
-          _isNearby = isNear;
-          if (_isNearby) {
-            _handleProximityGesture();
-          }
-        }
-      });
-    }
-    */
   }
 
   // Detect shake gesture using accelerometer
@@ -81,30 +66,17 @@ class SensorControls {
 
     if (isFlippingUp && !_isFlipped) {
       _isFlipped = true;
-      playbackController.pause();
+      syncManager.pause();
     } else if (!isFlippingUp && _isFlipped) {
       _isFlipped = false;
-      playbackController.play();
+      syncManager.play();
     }
   }
 
   // Handle shake gesture
   void _handleShakeGesture() {
     // Skip to next track on shake
-    playbackController.playNext();
-  }
-
-  // Handle proximity gesture (hand over phone)
-  void _handleProximityGesture() {
-    // Only trigger if we can
-    if (!_canTriggerGesture()) return;
-
-    // Toggle playback state
-    if (playbackController.isPlaying) {
-      playbackController.pause();
-    } else {
-      playbackController.play();
-    }
+    syncManager.nextTrack();
   }
 
   // Check if we can trigger a gesture (debounce)

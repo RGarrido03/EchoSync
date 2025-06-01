@@ -6,35 +6,24 @@ part of 'sync.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-PlaybackState _$PlaybackStateFromJson(Map<String, dynamic> json) =>
-    PlaybackState(
-      playlist:
-          (json['playlist'] as List<dynamic>).map((e) => e as String).toList(),
-      currentIndex: (json['currentIndex'] as num).toInt(),
-      isPlaying: json['isPlaying'] as bool,
-      position: (json['position'] as num).toInt(),
-      currentSong: json['currentSong'] as String?,
+TimeSyncMessage _$TimeSyncMessageFromJson(Map<String, dynamic> json) =>
+    TimeSyncMessage(
+      syncType: json['syncType'] as String,
+      senderId: json['senderId'] as String,
+      requestId: (json['requestId'] as num?)?.toInt(),
+      requestTime: (json['requestTime'] as num?)?.toInt(),
+      responseTime: (json['responseTime'] as num?)?.toInt(),
+      leaderTime: (json['leaderTime'] as num?)?.toInt(),
+      targetId: json['targetId'] as String?,
     );
 
-Map<String, dynamic> _$PlaybackStateToJson(PlaybackState instance) =>
+Map<String, dynamic> _$TimeSyncMessageToJson(TimeSyncMessage instance) =>
     <String, dynamic>{
-      'playlist': instance.playlist,
-      'currentIndex': instance.currentIndex,
-      'isPlaying': instance.isPlaying,
-      'position': instance.position,
-      'currentSong': instance.currentSong,
+      'syncType': instance.syncType,
+      'senderId': instance.senderId,
+      'requestId': instance.requestId,
+      'requestTime': instance.requestTime,
+      'responseTime': instance.responseTime,
+      'leaderTime': instance.leaderTime,
+      'targetId': instance.targetId,
     };
-
-SyncStateRequest _$SyncStateRequestFromJson(Map<String, dynamic> json) =>
-    SyncStateRequest(deviceId: json['deviceId'] as String);
-
-Map<String, dynamic> _$SyncStateRequestToJson(SyncStateRequest instance) =>
-    <String, dynamic>{'deviceId': instance.deviceId};
-
-SyncStateResponse _$SyncStateResponseFromJson(Map<String, dynamic> json) =>
-    SyncStateResponse(
-      state: PlaybackState.fromJson(json['state'] as Map<String, dynamic>),
-    );
-
-Map<String, dynamic> _$SyncStateResponseToJson(SyncStateResponse instance) =>
-    <String, dynamic>{'state': instance.state};

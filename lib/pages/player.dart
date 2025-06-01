@@ -1,4 +1,4 @@
-// lib/screens/player_screen.dart
+// lib/pages/player.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 

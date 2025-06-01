@@ -1,13 +1,16 @@
-// Base abstract message class
-
+// lib/messages/base.dart
 import 'package:json_annotation/json_annotation.dart';
 
 part 'base.g.dart';
 
 abstract class SyncMessage {
   final String command;
+  final DateTime timestamp;
 
-  const SyncMessage(this.command);
+  SyncMessage(this.command, {DateTime? timestamp})
+    : timestamp = (timestamp ?? DateTime.now());
+
+  Map<String, dynamic> toJson();
 }
 
 // Network time representation for synchronization
@@ -32,4 +35,7 @@ class NetworkTime {
   Map<String, dynamic> toJson() {
     return {'millisSinceEpoch': millisSinceEpoch};
   }
+
+  @override
+  String toString() => toDateTime().toIso8601String();
 }

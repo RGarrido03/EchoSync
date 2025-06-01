@@ -5,47 +5,83 @@ import 'base.dart';
 part 'sync.g.dart';
 
 @JsonSerializable()
-class PlaybackState {
-  final List<String> playlist;
-  final int currentIndex;
-  final bool isPlaying;
-  final int position;
-  final String? currentSong;
+class TimeSyncMessage extends SyncMessage {
+  final String syncType;
+  final String senderId;
+  final int? requestId;
+  final int? requestTime;
+  final int? responseTime;
+  final int? leaderTime;
+  final String? targetId;
 
-  const PlaybackState({
-    required this.playlist,
-    required this.currentIndex,
-    required this.isPlaying,
-    required this.position,
-    this.currentSong,
-  });
+  TimeSyncMessage({
+    required this.syncType,
+    required this.senderId,
+    this.requestId,
+    this.requestTime,
+    this.responseTime,
+    this.leaderTime,
+    this.targetId,
+  }) : super('time_sync');
 
-  factory PlaybackState.fromJson(Map<String, dynamic> json) =>
-      _$PlaybackStateFromJson(json);
+  factory TimeSyncMessage.request({
+    required String senderId,
+    required int requestId,
+    required int requestTime,
+  }) {
+    return TimeSyncMessage(
+      syncType: 'request',
+      senderId: senderId,
+      requestId: requestId,
+      requestTime: requestTime,
+    );
+  }
 
-  Map<String, dynamic> toJson() => _$PlaybackStateToJson(this);
-}
+  factory TimeSyncMessage.response({
+    required String senderId,
+    required int requestId,
+    required int requestTime,
+    required int responseTime,
+    required String targetId,
+  }) {
+    return TimeSyncMessage(
+      syncType: 'response',
+      senderId: senderId,
+      requestId: requestId,
+      requestTime: requestTime,
+      responseTime: responseTime,
+      targetId: targetId,
+    );
+  }
 
-@JsonSerializable()
-class SyncStateRequest extends SyncMessage {
-  final String deviceId;
+  factory TimeSyncMessage.responseAck({
+    required String senderId,
+    required int requestTime,
+    required int responseTime,
+    required int ackTime,
+  }) {
+    return TimeSyncMessage(
+      syncType: 'response_ack',
+      senderId: senderId,
+      requestTime: requestTime,
+      responseTime: responseTime,
+    );
+  }
 
-  const SyncStateRequest({required this.deviceId}) : super('sync_state');
+  factory TimeSyncMessage.broadcast({
+    required String senderId,
+    required int leaderTime,
+  }) {
+    return TimeSyncMessage(
+      syncType: 'broadcast',
+      senderId: senderId,
+      leaderTime: leaderTime,
+    );
+  }
 
-  factory SyncStateRequest.fromJson(Map<String, dynamic> json) =>
-      _$SyncStateRequestFromJson(json);
+  factory TimeSyncMessage.fromJson(Map<String, dynamic> json) =>
+      _$TimeSyncMessageFromJson(json);
 
-  Map<String, dynamic> toJson() => _$SyncStateRequestToJson(this);
-}
-
-@JsonSerializable()
-class SyncStateResponse extends SyncMessage {
-  final PlaybackState state;
-
-  const SyncStateResponse({required this.state}) : super('sync_state_response');
-
-  factory SyncStateResponse.fromJson(Map<String, dynamic> json) =>
-      _$SyncStateResponseFromJson(json);
-
-  Map<String, dynamic> toJson() => _$SyncStateResponseToJson(this);
+  @override
+  Map<String, dynamic> toJson() => _$TimeSyncMessageToJson(this);
 }

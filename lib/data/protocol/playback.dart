@@ -1,0 +1,113 @@
+// lib/messages/playback.dart
+import 'package:json_annotation/json_annotation.dart';
+
+import 'base.dart';
+import 'enums.dart';
+
+part 'playback.g.dart';
+
+// Complete playback status (retained message)
+@JsonSerializable()
+class PlaybackStatus {
+  final String? currentSong; // hash
+  final int position; // Position in milliseconds
+  final bool isPlaying;
+  final int currentIndex;
+  final double volume;
+  final bool shuffleMode;
+  final RepeatMode repeatMode;
+  final NetworkTime lastUpdated;
+  final String deviceId; // Which device last updated this
+
+  const PlaybackStatus({
+    this.currentSong,
+    required this.position,
+    required this.isPlaying,
+    required this.currentIndex,
+    required this.volume,
+    required this.shuffleMode,
+    required this.repeatMode,
+    required this.lastUpdated,
+    required this.deviceId,
+  });
+
+  factory PlaybackStatus.fromJson(Map<String, dynamic> json) =>
+      _$PlaybackStatusFromJson(json);
+
+  Map<String, dynamic> toJson() => _$PlaybackStatusToJson(this);
+}
+
+// Control messages for playback topic
+@JsonSerializable()
+class PlaybackControl extends SyncMessage {
+  final NetworkTime scheduledTime;
+  final String deviceIp;
+  final Map<String, dynamic>? params;
+
+  PlaybackControl({
+    required String command,
+    required this.scheduledTime,
+    required this.deviceIp,
+    this.params,
+  }) : super(command, timestamp: scheduledTime.toDateTime());
+
+  factory PlaybackControl.play({
+    required NetworkTime scheduledTime,
+    required String deviceId,
+    String? songHash,
+    int? position,
+  }) {
+    return PlaybackControl(
+      command: 'play',
+      scheduledTime: scheduledTime,
+      deviceIp: deviceId,
+      params: {
+        if (songHash != null) 'songHash': songHash,
+        if (position != null) 'position': position,
+      },
+    );
+  }
+
+  factory PlaybackControl.pause({
+    required NetworkTime scheduledTime,
+    required String deviceId,
+  }) {
+    return PlaybackControl(
+      command: 'pause',
+      scheduledTime: scheduledTime,
+      deviceIp: deviceId,
+    );
+  }
+
+  factory PlaybackControl.seek({
+    required NetworkTime scheduledTime,
+    required String deviceId,
+    required int position,
+  }) {
+    return PlaybackControl(
+      command: 'seek',
+      scheduledTime: scheduledTime,
+      deviceIp: deviceId,
+      params: {'position': position},
+    );
+  }
+
+  factory PlaybackControl.setVolume({
+    required NetworkTime scheduledTime,
+    required String deviceId,
+    required double volume,
+  }) {
+    return PlaybackControl(
+      command: 'set_volume',
+      scheduledTime: scheduledTime,
+      deviceIp: deviceId,
+      params: {'volume': volume},
+    );
+  }
+
+  factory PlaybackControl.fromJson(Map<String, dynamic> json) =>
+      _$PlaybackControlFromJson(json);
+
+  @override
+  Map<String, dynamic> toJson() => _$PlaybackControlToJson(this);
+}
