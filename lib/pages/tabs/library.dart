@@ -1,3 +1,4 @@
+// lib/pages/tabs/library.dart
 import 'package:flutter/material.dart';
 
 class LibraryTab extends StatelessWidget {

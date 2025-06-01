@@ -334,7 +334,7 @@ class SyncManager {
       case 'next':
         int newIndex = newStatus.currentIndex + 1;
         if (newIndex >= newStatus.songs.length) {
-          if (newStatus.repeatMode == 'all') {
+          if (newStatus.repeatMode == RepeatMode.all) {
             newIndex = 0;
           } else {
             newIndex = newStatus.songs.length - 1;

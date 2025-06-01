@@ -118,8 +118,9 @@ class TimeSyncService {
   void _processSyncResponse(TimeSyncMessage message) {
     if (message.requestId == null ||
         message.requestTime == null ||
-        message.responseTime == null)
+        message.responseTime == null) {
       return;
+    }
 
     final requestId = message.requestId!;
     final requestTime = message.requestTime!;

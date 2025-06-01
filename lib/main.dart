@@ -1,57 +1,33 @@
+// lib/main.dart
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:echosync/pages/tabs/devices.dart';
 import 'package:echosync/pages/tabs/home.dart';
 import 'package:echosync/pages/tabs/library.dart';
-import 'package:echosync/services/mesh_network.dart';
-import 'package:echosync/services/playback_controller.dart';
-import 'package:echosync/services/qr_connection.dart';
-import 'package:echosync/services/sensor_controls.dart';
-import 'package:echosync/services/time_sync.dart';
+import 'package:echosync/providers/mesh_network_provider.dart';
+import 'package:echosync/providers/sync_manager_provider.dart';
+import 'package:echosync/providers/time_sync_provider.dart';
+import 'package:echosync/services/device_info.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 
+import 'data/device.dart';
 import 'navigation/nav_item.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const EchoSyncApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class EchoSyncApp extends StatelessWidget {
+  const EchoSyncApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider(
-          create: (_) => MeshNetwork(),
-          dispose: (_, meshNetwork) => meshNetwork.disconnect(),
-        ),
-        ProxyProvider<MeshNetwork, TimeSyncService>(
-          update:
-              (_, meshNetwork, __) =>
-                  TimeSyncService(sendMessage: (a) => print("TODO COUNTER")),
-          dispose: (_, timeSync) => timeSync.dispose(),
-        ),
-        ProxyProvider2<MeshNetwork, TimeSyncService, PlaybackController>(
-          update:
-              (_, meshNetwork, timeSync, __) => PlaybackController(
-                meshNetwork: meshNetwork,
-                timeSync: timeSync,
-              ),
-          dispose: (_, controller) => controller.dispose(),
-        ),
-        ProxyProvider<PlaybackController, SensorControls>(
-          update:
-              (_, playbackController, __) =>
-                  SensorControls(playbackController: playbackController)
-                    ..initialize(),
-          dispose: (_, sensorControls) => sensorControls.dispose(),
-        ),
-        ProxyProvider<MeshNetwork, QRConnectionService>(
-          update: (_, meshNetwork, __) => QRConnectionService(),
-        ),
+        ChangeNotifierProvider(create: (_) => MeshNetworkProvider()),
+        ChangeNotifierProvider(create: (_) => TimeSyncProvider()),
+        ChangeNotifierProvider(create: (_) => SyncManagerProvider()),
       ],
       child: DynamicColorBuilder(
         builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
@@ -72,7 +48,7 @@ class MyApp extends StatelessWidget {
                     brightness: Brightness.dark,
                   ),
             ),
-            home: const MyHomePage(),
+            home: const EchoSyncHomePage(),
           );
         },
       ),
@@ -80,14 +56,17 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
+class EchoSyncHomePage extends StatefulWidget {
+  const EchoSyncHomePage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<EchoSyncHomePage> createState() => _EchoSyncHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _EchoSyncHomePageState extends State<EchoSyncHomePage> {
+  late DeviceInfoService _deviceInfoService;
+  Device? _currentDevice;
+  bool _isInitialized = false;
   int currentPageIndex = 0;
 
   List<NavItem> navItems = [
@@ -97,9 +76,83 @@ class _MyHomePageState extends State<MyHomePage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _deviceInfoService = DeviceInfoService();
+    _initializeServices();
+  }
+
+  Future<void> _initializeServices() async {
+    try {
+      _currentDevice = await _deviceInfoService.deviceInfo;
+
+      final meshProvider = context.read<MeshNetworkProvider>();
+      await meshProvider.initialize(_currentDevice!);
+
+      final timeSyncProvider = context.read<TimeSyncProvider>();
+      timeSyncProvider.initialize(
+        meshProvider.meshNetwork!,
+        _currentDevice!.ip,
+      );
+
+      final syncManagerProvider = context.read<SyncManagerProvider>();
+      syncManagerProvider.initialize(
+        meshProvider.meshNetwork!,
+        timeSyncProvider.timeSyncService!,
+        _currentDevice!.ip,
+      );
+
+      setState(() => _isInitialized = true);
+    } catch (e) {
+      debugPrint('Initialization error: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    context.read<SyncManagerProvider>().disposeManager();
+    context.read<TimeSyncProvider>().disposeService();
+    context.read<MeshNetworkProvider>().disconnect();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final syncManagerProvider = context.watch<SyncManagerProvider>();
+    final syncManager = syncManagerProvider.syncManager;
+
     return Scaffold(
-      appBar: AppBar(title: Text("EchoSync")),
+      appBar: AppBar(
+        title: const Text("EchoSync"),
+        actions: [
+          if (_isInitialized)
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                switch (value) {
+                  case 'leader':
+                    syncManager?.setAsLeader();
+                    setState(() {});
+                    break;
+                  case 'follower':
+                    syncManager?.setAsFollower();
+                    setState(() {});
+                    break;
+                }
+              },
+              itemBuilder:
+                  (context) => [
+                    const PopupMenuItem(
+                      value: 'leader',
+                      child: Text('Become Leader'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'follower',
+                      child: Text('Become Follower'),
+                    ),
+                  ],
+            ),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         onDestinationSelected: (int index) {
           setState(() {
@@ -118,15 +171,18 @@ class _MyHomePageState extends State<MyHomePage> {
                 )
                 .toList(),
       ),
-      body: Padding(
-        padding: EdgeInsets.only(top: 8),
-        child:
-            const <Widget>[
-              HomeTab(),
-              LibraryTab(),
-              DevicesTab(),
-            ][currentPageIndex],
-      ),
+      body:
+          _isInitialized
+              ? Padding(
+                padding: EdgeInsets.only(top: 8),
+                child:
+                    const <Widget>[
+                      HomeTab(),
+                      LibraryTab(),
+                      DevicesTab(),
+                    ][currentPageIndex],
+              )
+              : const Center(child: CircularProgressIndicator()),
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
         tooltip: 'Player',

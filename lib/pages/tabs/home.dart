@@ -1,100 +1,190 @@
+// lib/pages/tabs/home.dart
+import 'package:echosync/providers/time_sync_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../services/mesh_network.dart';
-import '../../services/playback_controller.dart';
-import 'devices.dart';
+import '../../providers/sync_manager_provider.dart';
 
-class HomeTab extends StatefulWidget {
+class HomeTab extends StatelessWidget {
   const HomeTab({super.key});
 
   @override
-  _HomeTabState createState() => _HomeTabState();
-}
-
-class _HomeTabState extends State<HomeTab> {
-  bool _isInitialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeServices();
-  }
-
-  Future<void> _initializeServices() async {
-    final meshNetwork = Provider.of<MeshNetwork>(context, listen: false);
-    await meshNetwork.connect();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (!_isInitialized) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 20),
-              Text('Initializing Music Mesh...'),
-            ],
-          ),
-        ),
-      );
-    }
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDeviceInfo(context),
+          const SizedBox(height: 20),
+          _buildPlaybackControls(context),
+          const SizedBox(height: 20),
+          _buildQueueSection(context),
+        ],
+      ),
+    );
+  }
 
-    return Scaffold(
-      appBar: AppBar(title: Text('Music Mesh')),
-      body: Center(
+  Widget _buildDeviceInfo(BuildContext context) {
+    final syncManagerProvider = context.watch<SyncManagerProvider>();
+    final syncManager = syncManagerProvider.syncManager;
+    final timeSyncProvider = context.watch<TimeSyncProvider>();
+    final timeSyncService = timeSyncProvider.timeSyncService;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Welcome to Music Mesh',
-              style: Theme.of(context).textTheme.headlineSmall,
+              'Device Information',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
-            SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: () {
-                final playbackController = Provider.of<PlaybackController>(
-                  context,
-                  listen: false,
-                );
-                playbackController.setAsLeader();
+            const SizedBox(height: 8),
+            // Text('Name: ${_currentDevice?.name ?? 'Unknown'}'),
+            // Text('IP: ${_currentDevice?.ip ?? 'Unknown'}'),
+            // Text('Status: ${_isConnected ? 'Connected' : 'Disconnected'}'),
+            Text(
+              'Role: ${syncManager?.isLeader == true ? 'Leader' : 'Follower'}',
+            ),
+            Text('Clock Offset: ${timeSyncService?.clockOffset ?? 0}ms'),
+          ],
+        ),
+      ),
+    );
+  }
 
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DevicesTab(),
-                  ), // TODO: Change tab
-                );
-              },
-              child: Text('Create New Session'),
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-              ),
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                final playbackController = Provider.of<PlaybackController>(
-                  context,
-                  listen: false,
-                );
-                playbackController.setAsFollower();
+  Widget _buildPlaybackControls(BuildContext context) {
+    final syncManagerProvider = context.watch<SyncManagerProvider>();
+    final playbackStatus = syncManagerProvider.playbackStatus;
+    final syncManager = syncManagerProvider.syncManager;
 
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DevicesTab(isJoining: true),
-                  ), // TODO: Change tab
-                );
-              },
-              child: Text('Join Session'),
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-              ),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Playback Controls',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
+            const SizedBox(height: 8),
+            if (playbackStatus != null) ...[
+              Text('Current Song: ${playbackStatus.currentSong ?? 'None'}'),
+              Text('Position: ${playbackStatus.position}ms'),
+              Text('Playing: ${playbackStatus.isPlaying}'),
+              Text('Volume: ${(playbackStatus.volume * 100).toInt()}%'),
+              const SizedBox(height: 8),
+            ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  onPressed: syncManager?.previousTrack,
+                  child: const Icon(Icons.skip_previous),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    playbackStatus?.isPlaying == true
+                        ? syncManager?.pause()
+                        : syncManager?.play();
+                  },
+                  child: Icon(
+                    playbackStatus?.isPlaying == true
+                        ? Icons.pause
+                        : Icons.play_arrow,
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: syncManager?.nextTrack,
+                  child: const Icon(Icons.skip_next),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Text('Seek: '),
+                Expanded(
+                  child: Slider(
+                    value: (playbackStatus?.position ?? 0).toDouble(),
+                    min: 0,
+                    max: 300000, // 5 minutes
+                    onChanged: (value) {
+                      syncManager?.seek(value.toInt());
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQueueSection(BuildContext context) {
+    final syncManagerProvider = context.watch<SyncManagerProvider>();
+    final queueStatus = syncManagerProvider.queueStatus;
+    final syncManager = syncManagerProvider.syncManager;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Queue', style: Theme.of(context).textTheme.titleLarge),
+                ElevatedButton(
+                  onPressed: () {
+                    final songHash =
+                        'song_${DateTime.now().millisecondsSinceEpoch}';
+                    syncManager?.addToQueue(songHash);
+                  },
+                  child: const Text('Add Song'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (queueStatus != null) ...[
+              Text('Current Index: ${queueStatus.currentIndex}'),
+              Text('Songs: ${queueStatus.songs.length}'),
+              const SizedBox(height: 8),
+              if (queueStatus.songs.isNotEmpty) ...[
+                SizedBox(
+                  height: 200,
+                  child: ListView.builder(
+                    itemCount: queueStatus.songs.length,
+                    itemBuilder: (context, index) {
+                      final isCurrentSong = index == queueStatus.currentIndex;
+                      return ListTile(
+                        title: Text(queueStatus.songs[index]),
+                        leading:
+                            isCurrentSong
+                                ? const Icon(
+                                  Icons.play_arrow,
+                                  color: Colors.blue,
+                                )
+                                : Text('${index + 1}'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            // TODO: removeFromQueue method needs to be added to SyncManager
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ] else ...[
+                const Text('No songs in queue'),
+              ],
+            ],
           ],
         ),
       ),
