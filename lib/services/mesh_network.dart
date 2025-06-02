@@ -90,8 +90,6 @@ class MeshNetwork {
     _client.onDisconnected = _onDisconnected;
     _client.onSubscribed = (topic) => print("Subscribed to $topic");
     _client.onSubscribeFail = (topic) => print("Failed to subscribe to $topic");
-
-    _client.updates?.listen(_onMessageReceived);
   }
 
   Future<void> connect() async {
@@ -109,9 +107,12 @@ class MeshNetwork {
             .withWillRetain();
 
     await _client.connect();
+
     if (_client.connectionStatus!.state != MqttConnectionState.connected) {
       throw Exception('Failed to connect to MQTT broker');
     }
+
+    _client.updates!.listen(_onMessageReceived);
   }
 
   void _onConnected() async {
