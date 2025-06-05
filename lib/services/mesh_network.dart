@@ -37,7 +37,6 @@ class MeshNetwork {
   // State storage
   PlaybackStatus? _currentPlaybackStatus;
   QueueStatus? _currentQueueStatus;
-  DeviceRegistry? _deviceRegistry;
 
   // Getters for current state
   PlaybackStatus? get currentPlaybackStatus => _currentPlaybackStatus;
@@ -171,13 +170,10 @@ class MeshNetwork {
 
       case deviceRegistryTopic:
         final registry = DeviceRegistry.fromJson(data);
-        _deviceRegistry = registry;
         _connectedDevices.clear();
         _connectedDevices.addAll(registry.devices);
         // Directly notify MeshNetworkBloc
-        _meshNetworkBloc.add(
-          UpdateConnectedDevices(Map.from(_connectedDevices)),
-        );
+        _meshNetworkBloc.add(UpdateConnectedDevices(_connectedDevices));
         break;
 
       case playbackControlTopic:
@@ -198,7 +194,11 @@ class MeshNetwork {
 
       case deviceControlTopic:
         final control = DeviceControl.fromJson(data);
+        print(
+          "Received device control: ${control.device.ip}, host is ${_device.ip}",
+        );
         if (control.device.ip != _device.ip) {
+          print("Adding IP ${control.device.ip}");
           _handleDeviceControl(control);
         }
         break;
@@ -214,6 +214,9 @@ class MeshNetwork {
   }
 
   void _handleDeviceControl(DeviceControl control) {
+    print(
+      "Handling device control: ${control.action} for ${control.device.ip}",
+    );
     switch (control.action) {
       case 'join':
         _connectedDevices[control.device.ip] = control.device;
@@ -229,18 +232,11 @@ class MeshNetwork {
   }
 
   Future<void> _updateDeviceRegistry() async {
-    print("New device registry updated: ${_connectedDevices.keys}");
     final registry = DeviceRegistry(
       devices: Map.from(_connectedDevices),
       lastUpdated: NetworkTime.now(),
     );
     await _publishMessage(deviceRegistryTopic, registry.toJson(), retain: true);
-
-    // Directly notify MeshNetworkBloc
-    print(
-      "Notifying MeshNetworkBloc with updated devices: ${_connectedDevices.keys}",
-    );
-    print("Current bloc state: $_meshNetworkBloc");
     _meshNetworkBloc.add(UpdateConnectedDevices(_connectedDevices));
   }
 
