@@ -2,6 +2,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:echosync/blocs/mesh_network/mesh_network_bloc.dart';
+import 'package:echosync/blocs/sync_manager/sync_manager_bloc.dart';
 import 'package:echosync/data/protocol/base.dart';
 import 'package:echosync/data/protocol/playback.dart';
 import 'package:echosync/data/protocol/queue.dart';
@@ -15,19 +17,18 @@ import '../data/protocol/sync.dart';
 class MeshNetwork {
   late final Device _device;
   final Map<String, Device> _connectedDevices = {};
-
   late MqttServerClient _client;
   bool _isConnected = false;
 
+  // BLoC references for direct event emission
+  late MeshNetworkBloc _meshNetworkBloc;
+  late SyncManagerBloc _syncManagerBloc;
+
   // Topics
   static const String _baseTopic = 'echosync';
-
-  // Status topics (retained)
   static const String playbackStatusTopic = '$_baseTopic/playback/status';
   static const String queueStatusTopic = '$_baseTopic/queue/status';
   static const String deviceRegistryTopic = '$_baseTopic/devices/status';
-
-  // Control topics (non-retained)
   static const String playbackControlTopic = '$_baseTopic/playback/control';
   static const String queueControlTopic = '$_baseTopic/queue/control';
   static const String deviceControlTopic = '$_baseTopic/devices/control';
@@ -37,35 +38,6 @@ class MeshNetwork {
   PlaybackStatus? _currentPlaybackStatus;
   QueueStatus? _currentQueueStatus;
   DeviceRegistry? _deviceRegistry;
-
-  // Event streams
-  final StreamController<PlaybackControl> _playbackControlStream =
-      StreamController.broadcast();
-  final StreamController<QueueControl> _queueControlStream =
-      StreamController.broadcast();
-  final StreamController<TimeSyncMessage> _timeSyncStream =
-      StreamController.broadcast();
-  final StreamController<DeviceControl> _deviceControlStream =
-      StreamController.broadcast();
-  final StreamController<PlaybackStatus> _playbackStatusStream =
-      StreamController.broadcast();
-  final StreamController<QueueStatus> _queueStatusStream =
-      StreamController.broadcast();
-
-  // Public streams
-  Stream<PlaybackControl> get playbackControlStream =>
-      _playbackControlStream.stream;
-
-  Stream<QueueControl> get queueControlStream => _queueControlStream.stream;
-
-  Stream<TimeSyncMessage> get timeSyncStream => _timeSyncStream.stream;
-
-  Stream<DeviceControl> get deviceControlStream => _deviceControlStream.stream;
-
-  Stream<PlaybackStatus> get playbackStatusStream =>
-      _playbackStatusStream.stream;
-
-  Stream<QueueStatus> get queueStatusStream => _queueStatusStream.stream;
 
   // Getters for current state
   PlaybackStatus? get currentPlaybackStatus => _currentPlaybackStatus;
@@ -80,12 +52,24 @@ class MeshNetwork {
     _setupMqttClient();
   }
 
+  // Set BLoC references for direct event emission
+  void setBlocReferences({
+    MeshNetworkBloc? meshNetworkBloc,
+    SyncManagerBloc? syncManagerBloc,
+  }) {
+    if (meshNetworkBloc != null) {
+      _meshNetworkBloc = meshNetworkBloc;
+    }
+    if (syncManagerBloc != null) {
+      _syncManagerBloc = syncManagerBloc;
+    }
+  }
+
   void _setupMqttClient() {
     _client = MqttServerClient('broker.hivemq.com', _device.ip);
     _client.port = 1883;
     _client.keepAlivePeriod = 20;
     _client.autoReconnect = true;
-
     _client.onConnected = _onConnected;
     _client.onDisconnected = _onDisconnected;
     _client.onSubscribed = (topic) => print("Subscribed to $topic");
@@ -96,7 +80,6 @@ class MeshNetwork {
     if (_isConnected) return;
 
     final willMessage = DeviceControl.leave(_device);
-
     _client.connectionMessage =
         MqttConnectMessage()
             .withClientIdentifier(_device.ip)
@@ -118,21 +101,14 @@ class MeshNetwork {
   void _onConnected() async {
     _isConnected = true;
     print('Connected to MQTT broker');
-
-    // Subscribe to all topics
     await _subscribeToTopics();
-
-    // Announce device joining
     await _announceDeviceJoin();
   }
 
   Future<void> _subscribeToTopics() async {
-    // Subscribe to status topics (retained)
     _client.subscribe(playbackStatusTopic, MqttQos.atLeastOnce);
     _client.subscribe(queueStatusTopic, MqttQos.atLeastOnce);
     _client.subscribe(deviceRegistryTopic, MqttQos.atLeastOnce);
-
-    // Subscribe to control topics
     _client.subscribe(playbackControlTopic, MqttQos.atLeastOnce);
     _client.subscribe(queueControlTopic, MqttQos.atLeastOnce);
     _client.subscribe(deviceControlTopic, MqttQos.atLeastOnce);
@@ -152,6 +128,9 @@ class MeshNetwork {
     print('Disconnected from MQTT broker');
     _isConnected = false;
     _connectedDevices.clear();
+
+    // Notify MeshNetworkBloc about disconnection
+    _meshNetworkBloc.add(UpdateConnectedDevices({}));
   }
 
   void _onMessageReceived(List<MqttReceivedMessage<MqttMessage>>? c) {
@@ -179,13 +158,15 @@ class MeshNetwork {
       case playbackStatusTopic:
         final status = PlaybackStatus.fromJson(data);
         _currentPlaybackStatus = status;
-        _playbackStatusStream.add(status);
+        // Directly notify SyncManagerBloc
+        _syncManagerBloc.add(PlaybackStatusUpdated(status));
         break;
 
       case queueStatusTopic:
         final status = QueueStatus.fromJson(data);
         _currentQueueStatus = status;
-        _queueStatusStream.add(status);
+        // Directly notify SyncManagerBloc
+        _syncManagerBloc.add(QueueStatusUpdated(status));
         break;
 
       case deviceRegistryTopic:
@@ -193,26 +174,31 @@ class MeshNetwork {
         _deviceRegistry = registry;
         _connectedDevices.clear();
         _connectedDevices.addAll(registry.devices);
+        // Directly notify MeshNetworkBloc
+        _meshNetworkBloc.add(
+          UpdateConnectedDevices(Map.from(_connectedDevices)),
+        );
         break;
 
       case playbackControlTopic:
         final control = PlaybackControl.fromJson(data);
         if (control.deviceIp != _device.ip) {
-          _playbackControlStream.add(control);
+          // Handle playback control in SyncManager logic
+          _handlePlaybackControl(control);
         }
         break;
 
       case queueControlTopic:
         final control = QueueControl.fromJson(data);
         if (control.deviceId != _device.ip) {
-          _queueControlStream.add(control);
+          // Handle queue control in SyncManager logic
+          _handleQueueControl(control);
         }
         break;
 
       case deviceControlTopic:
         final control = DeviceControl.fromJson(data);
         if (control.device.ip != _device.ip) {
-          _deviceControlStream.add(control);
           _handleDeviceControl(control);
         }
         break;
@@ -220,7 +206,8 @@ class MeshNetwork {
       case timeSyncTopic:
         final syncMessage = TimeSyncMessage.fromJson(data);
         if (syncMessage.senderId != _device.ip) {
-          _timeSyncStream.add(syncMessage);
+          // Handle time sync in TimeSyncService logic
+          _handleTimeSyncMessage(syncMessage);
         }
         break;
     }
@@ -230,25 +217,48 @@ class MeshNetwork {
     switch (control.action) {
       case 'join':
         _connectedDevices[control.device.ip] = control.device;
-        _updateDeviceRegistry();
         break;
       case 'leave':
         _connectedDevices.remove(control.device.ip);
-        _updateDeviceRegistry();
         break;
       case 'update':
         _connectedDevices[control.device.ip] = control.device;
-        _updateDeviceRegistry();
         break;
     }
+    _updateDeviceRegistry();
   }
 
   Future<void> _updateDeviceRegistry() async {
+    print("New device registry updated: ${_connectedDevices.keys}");
     final registry = DeviceRegistry(
       devices: Map.from(_connectedDevices),
       lastUpdated: NetworkTime.now(),
     );
     await _publishMessage(deviceRegistryTopic, registry.toJson(), retain: true);
+
+    // Directly notify MeshNetworkBloc
+    print(
+      "Notifying MeshNetworkBloc with updated devices: ${_connectedDevices.keys}",
+    );
+    print("Current bloc state: $_meshNetworkBloc");
+    _meshNetworkBloc.add(UpdateConnectedDevices(_connectedDevices));
+  }
+
+  // Forward playback control to SyncManager
+  void _handlePlaybackControl(PlaybackControl control) {
+    // This will be handled by SyncManager when it receives the message
+    // For now, we could store it and let SyncManager retrieve it
+    print('Received playback control: ${control.command}');
+  }
+
+  // Forward queue control to SyncManager
+  void _handleQueueControl(QueueControl control) {
+    print('Received queue control: ${control.command}');
+  }
+
+  // Forward time sync message to TimeSyncService
+  void _handleTimeSyncMessage(TimeSyncMessage message) {
+    // Do something
   }
 
   Future<void> _publishMessage(
@@ -273,7 +283,6 @@ class MeshNetwork {
   }
 
   // Public methods for sending messages
-
   Future<void> sendPlaybackControl(PlaybackControl control) async {
     await _publishMessage(playbackControlTopic, control.toJson());
   }
@@ -299,19 +308,12 @@ class MeshNetwork {
   Future<void> disconnect() async {
     if (!_isConnected) return;
 
-    // Announce leaving
     final leaveMessage = DeviceControl.leave(_device);
     await _publishMessage(deviceControlTopic, leaveMessage.toJson());
-
     _client.disconnect();
   }
 
   void dispose() {
-    _playbackControlStream.close();
-    _queueControlStream.close();
-    _timeSyncStream.close();
-    _deviceControlStream.close();
-    _playbackStatusStream.close();
-    _queueStatusStream.close();
+    disconnect();
   }
 }

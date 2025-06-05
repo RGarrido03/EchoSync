@@ -1,9 +1,9 @@
 // lib/pages/tabs/home.dart
-import 'package:echosync/providers/time_sync_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../providers/sync_manager_provider.dart';
+import '../../blocs/sync_manager/sync_manager_bloc.dart';
+import '../../blocs/time_sync/time_sync_bloc.dart';
 
 class HomeTab extends StatelessWidget {
   const HomeTab({super.key});
@@ -26,11 +26,6 @@ class HomeTab extends StatelessWidget {
   }
 
   Widget _buildDeviceInfo(BuildContext context) {
-    final syncManagerProvider = context.watch<SyncManagerProvider>();
-    final syncManager = syncManagerProvider.syncManager;
-    final timeSyncProvider = context.watch<TimeSyncProvider>();
-    final timeSyncService = timeSyncProvider.timeSyncService;
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -42,13 +37,32 @@ class HomeTab extends StatelessWidget {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            // Text('Name: ${_currentDevice?.name ?? 'Unknown'}'),
-            // Text('IP: ${_currentDevice?.ip ?? 'Unknown'}'),
-            // Text('Status: ${_isConnected ? 'Connected' : 'Disconnected'}'),
-            Text(
-              'Role: ${syncManager?.isLeader == true ? 'Leader' : 'Follower'}',
+            BlocBuilder<SyncManagerBloc, SyncManagerState>(
+              builder: (context, syncState) {
+                return BlocBuilder<TimeSyncBloc, TimeSyncState>(
+                  builder: (context, timeState) {
+                    String role = 'Unknown';
+                    int clockOffset = 0;
+
+                    if (syncState is SyncManagerReady) {
+                      role = syncState.isLeader ? 'Leader' : 'Follower';
+                    }
+
+                    if (timeState is TimeSyncReady) {
+                      clockOffset = timeState.clockOffset;
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Role: $role'),
+                        Text('Clock Offset: ${clockOffset}ms'),
+                      ],
+                    );
+                  },
+                );
+              },
             ),
-            Text('Clock Offset: ${timeSyncService?.clockOffset ?? 0}ms'),
           ],
         ),
       ),
@@ -56,10 +70,6 @@ class HomeTab extends StatelessWidget {
   }
 
   Widget _buildPlaybackControls(BuildContext context) {
-    final syncManagerProvider = context.watch<SyncManagerProvider>();
-    final playbackStatus = syncManagerProvider.playbackStatus;
-    final syncManager = syncManagerProvider.syncManager;
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -71,53 +81,80 @@ class HomeTab extends StatelessWidget {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            if (playbackStatus != null) ...[
-              Text('Current Song: ${playbackStatus.currentSong ?? 'None'}'),
-              Text('Position: ${playbackStatus.position}ms'),
-              Text('Playing: ${playbackStatus.isPlaying}'),
-              Text('Volume: ${(playbackStatus.volume * 100).toInt()}%'),
-              const SizedBox(height: 8),
-            ],
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  onPressed: syncManager?.previousTrack,
-                  child: const Icon(Icons.skip_previous),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    playbackStatus?.isPlaying == true
-                        ? syncManager?.pause()
-                        : syncManager?.play();
-                  },
-                  child: Icon(
-                    playbackStatus?.isPlaying == true
-                        ? Icons.pause
-                        : Icons.play_arrow,
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: syncManager?.nextTrack,
-                  child: const Icon(Icons.skip_next),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Text('Seek: '),
-                Expanded(
-                  child: Slider(
-                    value: (playbackStatus?.position ?? 0).toDouble(),
-                    min: 0,
-                    max: 300000, // 5 minutes
-                    onChanged: (value) {
-                      syncManager?.seek(value.toInt());
-                    },
-                  ),
-                ),
-              ],
+            BlocBuilder<SyncManagerBloc, SyncManagerState>(
+              builder: (context, state) {
+                if (state is! SyncManagerReady) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final playbackStatus = state.playbackStatus;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (playbackStatus != null) ...[
+                      Text(
+                        'Current Song: ${playbackStatus.currentSong ?? 'None'}',
+                      ),
+                      Text('Position: ${playbackStatus.position}ms'),
+                      Text('Playing: ${playbackStatus.isPlaying}'),
+                      Text('Volume: ${(playbackStatus.volume * 100).toInt()}%'),
+                      const SizedBox(height: 8),
+                    ],
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () {
+                            context.read<SyncManagerBloc>().add(
+                              PreviousTrack(),
+                            );
+                          },
+                          child: const Icon(Icons.skip_previous),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            if (playbackStatus?.isPlaying == true) {
+                              context.read<SyncManagerBloc>().add(PauseMusic());
+                            } else {
+                              context.read<SyncManagerBloc>().add(PlayMusic());
+                            }
+                          },
+                          child: Icon(
+                            playbackStatus?.isPlaying == true
+                                ? Icons.pause
+                                : Icons.play_arrow,
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            context.read<SyncManagerBloc>().add(NextTrack());
+                          },
+                          child: const Icon(Icons.skip_next),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Text('Seek: '),
+                        Expanded(
+                          child: Slider(
+                            value: (playbackStatus?.position ?? 0).toDouble(),
+                            min: 0,
+                            max: 300000, // 5 minutes
+                            onChanged: (value) {
+                              context.read<SyncManagerBloc>().add(
+                                SeekToPosition(value.toInt()),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -126,10 +163,6 @@ class HomeTab extends StatelessWidget {
   }
 
   Widget _buildQueueSection(BuildContext context) {
-    final syncManagerProvider = context.watch<SyncManagerProvider>();
-    final queueStatus = syncManagerProvider.queueStatus;
-    final syncManager = syncManagerProvider.syncManager;
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -144,47 +177,67 @@ class HomeTab extends StatelessWidget {
                   onPressed: () {
                     final songHash =
                         'song_${DateTime.now().millisecondsSinceEpoch}';
-                    syncManager?.addToQueue(songHash);
+                    context.read<SyncManagerBloc>().add(
+                      AddSongToQueue(songHash),
+                    );
                   },
                   child: const Text('Add Song'),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            if (queueStatus != null) ...[
-              Text('Current Index: ${queueStatus.currentIndex}'),
-              Text('Songs: ${queueStatus.songs.length}'),
-              const SizedBox(height: 8),
-              if (queueStatus.songs.isNotEmpty) ...[
-                SizedBox(
-                  height: 200,
-                  child: ListView.builder(
-                    itemCount: queueStatus.songs.length,
-                    itemBuilder: (context, index) {
-                      final isCurrentSong = index == queueStatus.currentIndex;
-                      return ListTile(
-                        title: Text(queueStatus.songs[index]),
-                        leading:
-                            isCurrentSong
-                                ? const Icon(
-                                  Icons.play_arrow,
-                                  color: Colors.blue,
-                                )
-                                : Text('${index + 1}'),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () {
-                            // TODO: removeFromQueue method needs to be added to SyncManager
+            BlocBuilder<SyncManagerBloc, SyncManagerState>(
+              builder: (context, state) {
+                if (state is! SyncManagerReady) {
+                  return const SizedBox.shrink();
+                }
+
+                final queueStatus = state.queueStatus;
+
+                if (queueStatus == null) {
+                  return const Text('Queue not loaded');
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Current Index: ${queueStatus.currentIndex}'),
+                    Text('Songs: ${queueStatus.songs.length}'),
+                    const SizedBox(height: 8),
+                    if (queueStatus.songs.isNotEmpty) ...[
+                      SizedBox(
+                        height: 200,
+                        child: ListView.builder(
+                          itemCount: queueStatus.songs.length,
+                          itemBuilder: (context, index) {
+                            final isCurrentSong =
+                                index == queueStatus.currentIndex;
+                            return ListTile(
+                              title: Text(queueStatus.songs[index]),
+                              leading:
+                                  isCurrentSong
+                                      ? const Icon(
+                                        Icons.play_arrow,
+                                        color: Colors.blue,
+                                      )
+                                      : Text('${index + 1}'),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete),
+                                onPressed: () {
+                                  // TODO: Add remove from queue event
+                                },
+                              ),
+                            );
                           },
                         ),
-                      );
-                    },
-                  ),
-                ),
-              ] else ...[
-                const Text('No songs in queue'),
-              ],
-            ],
+                      ),
+                    ] else ...[
+                      const Text('No songs in queue'),
+                    ],
+                  ],
+                );
+              },
+            ),
           ],
         ),
       ),

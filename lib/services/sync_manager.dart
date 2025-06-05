@@ -1,5 +1,7 @@
+// lib/services/sync_manager.dart
 import 'dart:async';
 
+import 'package:echosync/blocs/sync_manager/sync_manager_bloc.dart';
 import 'package:echosync/services/time_sync.dart';
 
 import '../data/device.dart';
@@ -13,25 +15,11 @@ class SyncManager {
   final MeshNetwork _meshNetwork;
   final TimeSyncService _timeSyncService;
   final String _deviceIp;
+  SyncManagerBloc? _syncManagerBloc;
 
-  // Current state
   PlaybackStatus? _localPlaybackStatus;
   QueueStatus? _localQueueStatus;
   bool _isLeader = false;
-
-  // Event streams
-  final StreamController<PlaybackStatus> _playbackStateStream =
-      StreamController.broadcast();
-  final StreamController<QueueStatus> _queueStateStream =
-      StreamController.broadcast();
-  final StreamController<String> _errorStream = StreamController.broadcast();
-
-  // Public streams
-  Stream<PlaybackStatus> get playbackStateStream => _playbackStateStream.stream;
-
-  Stream<QueueStatus> get queueStateStream => _queueStateStream.stream;
-
-  Stream<String> get errorStream => _errorStream.stream;
 
   // Getters
   PlaybackStatus? get currentPlaybackStatus => _localPlaybackStatus;
@@ -48,27 +36,16 @@ class SyncManager {
     required String deviceIp,
   }) : _meshNetwork = meshNetwork,
        _timeSyncService = timeSyncService,
-       _deviceIp = deviceIp {
-    _setupListeners();
+       _deviceIp = deviceIp;
+
+  // Set BLoC reference for direct event emission
+  void setBlocReference(SyncManagerBloc syncManagerBloc) {
+    _syncManagerBloc = syncManagerBloc;
   }
 
-  void _setupListeners() {
-    // Listen to remote playback controls
-    _meshNetwork.playbackControlStream.listen(_handlePlaybackControl);
-
-    // Listen to remote queue controls
-    _meshNetwork.queueControlStream.listen(_handleQueueControl);
-
-    // Listen to playback status updates from other devices
-    _meshNetwork.playbackStatusStream.listen(_handleRemotePlaybackStatus);
-
-    // Listen to queue status updates from other devices
-    _meshNetwork.queueStatusStream.listen(_handleRemoteQueueStatus);
-  }
-
-  void _handlePlaybackControl(PlaybackControl control) {
+  // These methods will be called by MeshNetwork when it receives control messages
+  void handlePlaybackControl(PlaybackControl control) {
     try {
-      // Convert scheduled time to local time
       final localScheduledTime = _timeSyncService.networkToLocalTime(
         control.scheduledTime.millisSinceEpoch,
       );
@@ -76,16 +53,14 @@ class SyncManager {
       final delay = localScheduledTime - now;
 
       if (delay > 0) {
-        // Schedule the action for future execution
         Timer(Duration(milliseconds: delay), () {
           _executePlaybackControl(control);
         });
       } else {
-        // Execute immediately if the time has already passed
         _executePlaybackControl(control);
       }
     } catch (e) {
-      _errorStream.add('Error handling playback control: $e');
+      print('Error handling playback control: $e');
     }
   }
 
@@ -98,7 +73,6 @@ class SyncManager {
       case 'play':
         final position = control.params?['position'] as int?;
         final songHash = control.params?['songHash'] as String?;
-
         newStatus = PlaybackStatus(
           currentSong: songHash ?? newStatus.currentSong,
           position: position ?? newStatus.position,
@@ -163,37 +137,42 @@ class SyncManager {
   void _updateLocalPlaybackStatus(PlaybackStatus status) {
     _localPlaybackStatus = status;
     _meshNetwork.updatePlaybackStatus(status);
-    _playbackStateStream.add(status);
+
+    // Directly notify SyncManagerBloc
+    _syncManagerBloc?.add(PlaybackStatusUpdated(status));
   }
 
   void _updateLocalQueueStatus(QueueStatus status) {
     _localQueueStatus = status;
     _meshNetwork.updateQueueStatus(status);
-    _queueStateStream.add(status);
+
+    // Directly notify SyncManagerBloc
+    _syncManagerBloc?.add(QueueStatusUpdated(status));
   }
 
-  void _handleRemotePlaybackStatus(PlaybackStatus status) {
-    // Only update if the remote status is newer than our local status
+  void handleRemotePlaybackStatus(PlaybackStatus status) {
     if (_localPlaybackStatus == null ||
         status.lastUpdated.millisSinceEpoch >
             _localPlaybackStatus!.lastUpdated.millisSinceEpoch) {
       _localPlaybackStatus = status;
-      _playbackStateStream.add(status);
+
+      // Directly notify SyncManagerBloc
+      _syncManagerBloc?.add(PlaybackStatusUpdated(status));
     }
   }
 
-  void _handleRemoteQueueStatus(QueueStatus status) {
-    // Only update if the remote status is newer than our local status
+  void handleRemoteQueueStatus(QueueStatus status) {
     if (_localQueueStatus == null ||
         status.lastUpdated.millisSinceEpoch >
             _localQueueStatus!.lastUpdated.millisSinceEpoch) {
       _localQueueStatus = status;
-      _queueStateStream.add(status);
+
+      // Directly notify SyncManagerBloc
+      _syncManagerBloc?.add(QueueStatusUpdated(status));
     }
   }
 
   // Public methods for controlling playback
-
   Future<void> play({
     String? songHash,
     int? position,
@@ -202,45 +181,39 @@ class SyncManager {
     final scheduledTime = NetworkTime(
       _timeSyncService.getNetworkTime().millisSinceEpoch + delayMs,
     );
-
     final control = PlaybackControl.play(
       scheduledTime: scheduledTime,
       deviceId: _deviceIp,
       songHash: songHash,
       position: position,
     );
-
     await _meshNetwork.sendPlaybackControl(control);
-    _handlePlaybackControl(control);
+    handlePlaybackControl(control);
   }
 
   Future<void> pause({int delayMs = 100}) async {
     final scheduledTime = NetworkTime(
       _timeSyncService.getNetworkTime().millisSinceEpoch + delayMs,
     );
-
     final control = PlaybackControl.pause(
       scheduledTime: scheduledTime,
       deviceId: _deviceIp,
     );
-
     await _meshNetwork.sendPlaybackControl(control);
-    _handlePlaybackControl(control);
+    handlePlaybackControl(control);
   }
 
   Future<void> seek(int position, {int delayMs = 100}) async {
     final scheduledTime = NetworkTime(
       _timeSyncService.getNetworkTime().millisSinceEpoch + delayMs,
     );
-
     final control = PlaybackControl.seek(
       scheduledTime: scheduledTime,
       deviceId: _deviceIp,
       position: position,
     );
-
     await _meshNetwork.sendPlaybackControl(control);
-    _handlePlaybackControl(control);
+    handlePlaybackControl(control);
   }
 
   Future<void> addToQueue(String songHash, {int? position}) async {
@@ -249,24 +222,23 @@ class SyncManager {
       songHash: songHash,
       position: position,
     );
-
     await _meshNetwork.sendQueueControl(control);
-    _handleQueueControl(control);
+    handleQueueControl(control);
   }
 
   Future<void> nextTrack() async {
     final control = QueueControl.next(deviceId: _deviceIp);
     await _meshNetwork.sendQueueControl(control);
-    _handleQueueControl(control);
+    handleQueueControl(control);
   }
 
   Future<void> previousTrack() async {
     final control = QueueControl.previous(deviceId: _deviceIp);
     await _meshNetwork.sendQueueControl(control);
-    _handleQueueControl(control);
+    handleQueueControl(control);
   }
 
-  void _handleQueueControl(QueueControl control) {
+  void handleQueueControl(QueueControl control) {
     if (_localQueueStatus == null) return;
 
     QueueStatus newStatus = _localQueueStatus!;
@@ -275,7 +247,6 @@ class SyncManager {
       case 'add':
         final songHash = control.params?['songHash'] as String?;
         final position = control.params?['position'] as int?;
-
         if (songHash != null) {
           final newSongs = List<String>.from(newStatus.songs);
           if (position != null && position < newSongs.length) {
@@ -300,7 +271,6 @@ class SyncManager {
         if (index != null && index < newStatus.songs.length) {
           final newSongs = List<String>.from(newStatus.songs);
           newSongs.removeAt(index);
-
           int newCurrentIndex = newStatus.currentIndex;
           if (index <= newCurrentIndex && newCurrentIndex > 0) {
             newCurrentIndex--;
@@ -318,7 +288,7 @@ class SyncManager {
         break;
 
       case 'replace':
-        final songs = control.params?['songs'] as List<dynamic>?;
+        final songs = control.params?['songs'] as List?;
         if (songs != null) {
           newStatus = QueueStatus(
             songs: songs.cast<String>(),
@@ -375,7 +345,6 @@ class SyncManager {
     _updateLocalQueueStatus(newStatus);
   }
 
-  // Initialize with default state
   void initializeState() {
     _localPlaybackStatus = PlaybackStatus(
       currentSong: null,
@@ -413,9 +382,6 @@ class SyncManager {
   }
 
   void dispose() {
-    _playbackStateStream.close();
-    _queueStateStream.close();
-    _errorStream.close();
     _timeSyncService.dispose();
   }
 }

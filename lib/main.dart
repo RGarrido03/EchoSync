@@ -3,14 +3,14 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:echosync/pages/tabs/devices.dart';
 import 'package:echosync/pages/tabs/home.dart';
 import 'package:echosync/pages/tabs/library.dart';
-import 'package:echosync/providers/mesh_network_provider.dart';
-import 'package:echosync/providers/sync_manager_provider.dart';
-import 'package:echosync/providers/time_sync_provider.dart';
 import 'package:echosync/services/device_info.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_symbols_icons/symbols.dart';
-import 'package:provider/provider.dart';
 
+import 'blocs/mesh_network/mesh_network_bloc.dart';
+import 'blocs/sync_manager/sync_manager_bloc.dart';
+import 'blocs/time_sync/time_sync_bloc.dart';
 import 'data/device.dart';
 import 'navigation/nav_item.dart';
 
@@ -23,11 +23,11 @@ class EchoSyncApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
+    return MultiBlocProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => MeshNetworkProvider()),
-        ChangeNotifierProvider(create: (_) => TimeSyncProvider()),
-        ChangeNotifierProvider(create: (_) => SyncManagerProvider()),
+        BlocProvider(create: (_) => MeshNetworkBloc()),
+        BlocProvider(create: (_) => TimeSyncBloc()),
+        BlocProvider(create: (_) => SyncManagerBloc()),
       ],
       child: DynamicColorBuilder(
         builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
@@ -66,7 +66,6 @@ class EchoSyncHomePage extends StatefulWidget {
 class _EchoSyncHomePageState extends State<EchoSyncHomePage> {
   late DeviceInfoService _deviceInfoService;
   Device? _currentDevice;
-  bool _isInitialized = false;
   int currentPageIndex = 0;
 
   List<NavItem> navItems = [
@@ -86,71 +85,59 @@ class _EchoSyncHomePageState extends State<EchoSyncHomePage> {
     try {
       _currentDevice = await _deviceInfoService.deviceInfo;
 
-      final meshProvider = context.read<MeshNetworkProvider>();
-      await meshProvider.initialize(_currentDevice!);
+      if (!mounted) return;
 
-      final timeSyncProvider = context.read<TimeSyncProvider>();
-      timeSyncProvider.initialize(
-        meshProvider.meshNetwork!,
-        _currentDevice!.ip,
+      // Initialize mesh network
+      context.read<MeshNetworkBloc>().add(
+        InitializeMeshNetwork(_currentDevice!),
       );
-
-      final syncManagerProvider = context.read<SyncManagerProvider>();
-      syncManagerProvider.initialize(
-        meshProvider.meshNetwork!,
-        timeSyncProvider.timeSyncService!,
-        _currentDevice!.ip,
-      );
-
-      setState(() => _isInitialized = true);
     } catch (e) {
       debugPrint('Initialization error: $e');
     }
   }
 
   @override
-  void dispose() {
-    context.read<SyncManagerProvider>().disposeManager();
-    context.read<TimeSyncProvider>().disposeService();
-    context.read<MeshNetworkProvider>().disconnect();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final syncManagerProvider = context.watch<SyncManagerProvider>();
-    final syncManager = syncManagerProvider.syncManager;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text("EchoSync"),
         actions: [
-          if (_isInitialized)
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                switch (value) {
-                  case 'leader':
-                    syncManager?.setAsLeader();
-                    setState(() {});
-                    break;
-                  case 'follower':
-                    syncManager?.setAsFollower();
-                    setState(() {});
-                    break;
-                }
-              },
-              itemBuilder:
-                  (context) => [
-                    const PopupMenuItem(
-                      value: 'leader',
-                      child: Text('Become Leader'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'follower',
-                      child: Text('Become Follower'),
-                    ),
-                  ],
-            ),
+          BlocBuilder<SyncManagerBloc, SyncManagerState>(
+            builder: (context, state) {
+              if (state is SyncManagerReady) {
+                return PopupMenuButton<String>(
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'leader':
+                        context.read<SyncManagerBloc>().add(SetAsSyncLeader());
+                        context.read<TimeSyncBloc>().add(SetAsTimeSyncLeader());
+                        break;
+                      case 'follower':
+                        context.read<SyncManagerBloc>().add(
+                          SetAsSyncFollower(),
+                        );
+                        context.read<TimeSyncBloc>().add(
+                          SetAsTimeSyncFollower(),
+                        );
+                        break;
+                    }
+                  },
+                  itemBuilder:
+                      (context) => [
+                        const PopupMenuItem(
+                          value: 'leader',
+                          child: Text('Become Leader'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'follower',
+                          child: Text('Become Follower'),
+                        ),
+                      ],
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -171,18 +158,53 @@ class _EchoSyncHomePageState extends State<EchoSyncHomePage> {
                 )
                 .toList(),
       ),
-      body:
-          _isInitialized
-              ? Padding(
-                padding: EdgeInsets.only(top: 8),
+      body: MultiBlocListener(
+        listeners: [
+          BlocListener<MeshNetworkBloc, MeshNetworkState>(
+            listener: (context, state) {
+              if (state is MeshNetworkConnected) {
+                // Initialize time sync when mesh network is connected
+                context.read<TimeSyncBloc>().add(
+                  InitializeTimeSync(state.meshNetwork, _currentDevice!.ip),
+                );
+              }
+            },
+          ),
+          BlocListener<TimeSyncBloc, TimeSyncState>(
+            listener: (context, state) {
+              if (state is TimeSyncReady) {
+                final meshState = context.read<MeshNetworkBloc>().state;
+                if (meshState is MeshNetworkConnected) {
+                  // Initialize sync manager when time sync is ready
+                  context.read<SyncManagerBloc>().add(
+                    InitializeSyncManager(
+                      meshNetwork: meshState.meshNetwork,
+                      timeSyncService: state.timeSyncService,
+                      deviceIp: _currentDevice!.ip,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+        ],
+        child: BlocBuilder<SyncManagerBloc, SyncManagerState>(
+          builder: (context, state) {
+            if (state is SyncManagerReady) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
                 child:
-                    const <Widget>[
+                    const [
                       HomeTab(),
                       LibraryTab(),
                       DevicesTab(),
                     ][currentPageIndex],
-              )
-              : const Center(child: CircularProgressIndicator()),
+              );
+            }
+            return const Center(child: CircularProgressIndicator());
+          },
+        ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
         tooltip: 'Player',
