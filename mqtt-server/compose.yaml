@@ -1,0 +1,24 @@
+name: EchoSync
+services:
+  mosquitto:
+    image: eclipse-mosquitto
+    hostname: mosquitto
+    restart: always
+    user: 1000:1000
+    healthcheck:
+      test: [ "CMD", "mosquitto_sub", "-p", "1880", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - "./config:/mosquitto/config"
+      - "log:/mosquitto/log"
+      - "data:/mosquitto/data"
+
+volumes:
+  data:
+  log:
