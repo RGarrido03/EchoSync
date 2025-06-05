@@ -109,13 +109,9 @@ class _EchoSyncHomePageState extends State<EchoSyncHomePage> {
                   onSelected: (value) {
                     switch (value) {
                       case 'leader':
-                        context.read<SyncManagerBloc>().add(SetAsSyncLeader());
                         context.read<TimeSyncBloc>().add(SetAsTimeSyncLeader());
                         break;
                       case 'follower':
-                        context.read<SyncManagerBloc>().add(
-                          SetAsSyncFollower(),
-                        );
                         context.read<TimeSyncBloc>().add(
                           SetAsTimeSyncFollower(),
                         );

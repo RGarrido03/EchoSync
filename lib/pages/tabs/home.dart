@@ -37,29 +37,22 @@ class HomeTab extends StatelessWidget {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            BlocBuilder<SyncManagerBloc, SyncManagerState>(
-              builder: (context, syncState) {
-                return BlocBuilder<TimeSyncBloc, TimeSyncState>(
-                  builder: (context, timeState) {
-                    String role = 'Unknown';
-                    int clockOffset = 0;
+            BlocBuilder<TimeSyncBloc, TimeSyncState>(
+              builder: (context, timeState) {
+                String role = 'Unknown';
+                int clockOffset = 0;
 
-                    if (syncState is SyncManagerReady) {
-                      role = syncState.isLeader ? 'Leader' : 'Follower';
-                    }
+                if (timeState is TimeSyncReady) {
+                  role = timeState.isLeader ? 'Leader' : 'Follower';
+                  clockOffset = timeState.clockOffset;
+                }
 
-                    if (timeState is TimeSyncReady) {
-                      clockOffset = timeState.clockOffset;
-                    }
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Role: $role'),
-                        Text('Clock Offset: ${clockOffset}ms'),
-                      ],
-                    );
-                  },
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Role: $role'),
+                    Text('Clock Offset: ${clockOffset}ms'),
+                  ],
                 );
               },
             ),

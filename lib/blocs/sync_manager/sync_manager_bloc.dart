@@ -24,8 +24,6 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     on<NextTrack>(_onNext);
     on<PreviousTrack>(_onPrevious);
     on<AddSongToQueue>(_onAddToQueue);
-    on<SetAsSyncLeader>(_onSetAsLeader);
-    on<SetAsSyncFollower>(_onSetAsFollower);
     on<PlaybackStatusUpdated>(_onPlaybackUpdated);
     on<QueueStatusUpdated>(_onQueueUpdated);
   }
@@ -56,7 +54,6 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
           syncManager: _syncManager!,
           playbackStatus: _syncManager!.currentPlaybackStatus,
           queueStatus: _syncManager!.currentQueueStatus,
-          isLeader: _syncManager!.isLeader,
           connectedDevices: _syncManager!.connectedDevices,
         ),
       );
@@ -113,25 +110,6 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
   ) async {
     if (_syncManager != null) {
       await _syncManager!.addToQueue(event.songHash, position: event.position);
-    }
-  }
-
-  void _onSetAsLeader(SetAsSyncLeader event, Emitter<SyncManagerState> emit) {
-    if (_syncManager != null && state is SyncManagerReady) {
-      _syncManager!.setAsLeader();
-      final currentState = state as SyncManagerReady;
-      emit(currentState.copyWith(isLeader: true));
-    }
-  }
-
-  void _onSetAsFollower(
-    SetAsSyncFollower event,
-    Emitter<SyncManagerState> emit,
-  ) {
-    if (_syncManager != null && state is SyncManagerReady) {
-      _syncManager!.setAsFollower();
-      final currentState = state as SyncManagerReady;
-      emit(currentState.copyWith(isLeader: false));
     }
   }
 

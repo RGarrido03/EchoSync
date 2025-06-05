@@ -18,3 +18,9 @@ class UpdateClockOffset extends TimeSyncEvent {
 
   UpdateClockOffset(this.offset);
 }
+
+class TimeSyncMessageReceived extends TimeSyncEvent {
+  final TimeSyncMessage message;
+
+  TimeSyncMessageReceived(this.message);
+}

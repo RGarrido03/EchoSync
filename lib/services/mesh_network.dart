@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:echosync/blocs/mesh_network/mesh_network_bloc.dart';
 import 'package:echosync/blocs/sync_manager/sync_manager_bloc.dart';
+import 'package:echosync/blocs/time_sync/time_sync_bloc.dart';
 import 'package:echosync/data/protocol/base.dart';
 import 'package:echosync/data/protocol/playback.dart';
 import 'package:echosync/data/protocol/queue.dart';
@@ -23,6 +24,7 @@ class MeshNetwork {
   // BLoC references for direct event emission
   late MeshNetworkBloc _meshNetworkBloc;
   late SyncManagerBloc _syncManagerBloc;
+  late TimeSyncBloc _timeSyncBloc;
 
   // Topics
   static const String _baseTopic = 'echosync';
@@ -55,12 +57,16 @@ class MeshNetwork {
   void setBlocReferences({
     MeshNetworkBloc? meshNetworkBloc,
     SyncManagerBloc? syncManagerBloc,
+    TimeSyncBloc? timeSyncBloc,
   }) {
     if (meshNetworkBloc != null) {
       _meshNetworkBloc = meshNetworkBloc;
     }
     if (syncManagerBloc != null) {
       _syncManagerBloc = syncManagerBloc;
+    }
+    if (timeSyncBloc != null) {
+      _timeSyncBloc = timeSyncBloc;
     }
   }
 
@@ -254,7 +260,7 @@ class MeshNetwork {
 
   // Forward time sync message to TimeSyncService
   void _handleTimeSyncMessage(TimeSyncMessage message) {
-    // Do something
+    _timeSyncBloc.add(TimeSyncMessageReceived(message));
   }
 
   Future<void> _publishMessage(

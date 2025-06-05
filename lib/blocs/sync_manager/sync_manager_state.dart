@@ -10,14 +10,12 @@ class SyncManagerReady extends SyncManagerState {
   final SyncManager syncManager;
   final PlaybackStatus? playbackStatus;
   final QueueStatus? queueStatus;
-  final bool isLeader;
   final Map<String, Device> connectedDevices;
 
   SyncManagerReady({
     required this.syncManager,
     this.playbackStatus,
     this.queueStatus,
-    required this.isLeader,
     required this.connectedDevices,
   });
 
@@ -32,7 +30,6 @@ class SyncManagerReady extends SyncManagerState {
       syncManager: syncManager ?? this.syncManager,
       playbackStatus: playbackStatus ?? this.playbackStatus,
       queueStatus: queueStatus ?? this.queueStatus,
-      isLeader: isLeader ?? this.isLeader,
       connectedDevices: connectedDevices ?? this.connectedDevices,
     );
   }

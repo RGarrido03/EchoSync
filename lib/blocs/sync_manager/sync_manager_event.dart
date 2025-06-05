@@ -41,10 +41,6 @@ class AddSongToQueue extends SyncManagerEvent {
   AddSongToQueue(this.songHash, {this.position});
 }
 
-class SetAsSyncLeader extends SyncManagerEvent {}
-
-class SetAsSyncFollower extends SyncManagerEvent {}
-
 class PlaybackStatusUpdated extends SyncManagerEvent {
   final PlaybackStatus status;
 

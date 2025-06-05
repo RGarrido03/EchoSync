@@ -1,5 +1,6 @@
 // lib/services/time_sync.dart
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:echosync/blocs/time_sync/time_sync_bloc.dart';
@@ -107,6 +108,9 @@ class TimeSyncService {
   }
 
   void _processSyncResponse(TimeSyncMessage message) {
+    print(
+      "Processing sync response from ${message.senderId}: ${jsonEncode(message.toJson())}",
+    );
     if (message.requestId == null ||
         message.requestTime == null ||
         message.responseTime == null) {
@@ -140,6 +144,9 @@ class TimeSyncService {
   }
 
   void _processBroadcast(TimeSyncMessage message) {
+    print(
+      "Processing sync response from ${message.senderId}: ${jsonEncode(message.toJson())}",
+    );
     if (message.leaderTime == null) return;
 
     final leaderTime = message.leaderTime!;

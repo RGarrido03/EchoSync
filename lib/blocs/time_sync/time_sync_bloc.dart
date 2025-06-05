@@ -1,6 +1,7 @@
 // lib/bloc/time_sync/time_sync_bloc.dart
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/protocol/sync.dart';
 import '../../services/mesh_network.dart';
 import '../../services/time_sync.dart';
 
@@ -17,6 +18,7 @@ class TimeSyncBloc extends Bloc<TimeSyncEvent, TimeSyncState> {
     on<SetAsTimeSyncLeader>(_onSetAsLeader);
     on<SetAsTimeSyncFollower>(_onSetAsFollower);
     on<UpdateClockOffset>(_onUpdateOffset);
+    on<TimeSyncMessageReceived>(_onMessageReceived);
   }
 
   Future<void> _onInitialize(
@@ -33,6 +35,7 @@ class TimeSyncBloc extends Bloc<TimeSyncEvent, TimeSyncState> {
 
       // Set BLoC reference in the service for direct event emission
       _timeSyncService!.setBlocReference(this);
+      event.meshNetwork.setBlocReferences(timeSyncBloc: this);
 
       _timeSyncService!.startPeriodicSync();
 
@@ -50,6 +53,7 @@ class TimeSyncBloc extends Bloc<TimeSyncEvent, TimeSyncState> {
 
   void _onSetAsLeader(SetAsTimeSyncLeader event, Emitter<TimeSyncState> emit) {
     if (_timeSyncService != null) {
+      print("HERE LEAD THIS SHIT MF");
       _timeSyncService!.setAsLeader();
       emit(
         TimeSyncReady(
@@ -78,6 +82,7 @@ class TimeSyncBloc extends Bloc<TimeSyncEvent, TimeSyncState> {
   }
 
   void _onUpdateOffset(UpdateClockOffset event, Emitter<TimeSyncState> emit) {
+    print("Updated clock: ${event.offset}, $state");
     if (state is TimeSyncReady && _timeSyncService != null) {
       emit(
         TimeSyncReady(
@@ -86,6 +91,15 @@ class TimeSyncBloc extends Bloc<TimeSyncEvent, TimeSyncState> {
           clockOffset: event.offset,
         ),
       );
+    }
+  }
+
+  void _onMessageReceived(
+    TimeSyncMessageReceived event,
+    Emitter<TimeSyncState> emit,
+  ) {
+    if (_timeSyncService != null) {
+      _timeSyncService!.processTimeMessage(event.message);
     }
   }
 

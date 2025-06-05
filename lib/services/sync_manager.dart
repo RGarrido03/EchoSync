@@ -19,14 +19,11 @@ class SyncManager {
 
   PlaybackStatus? _localPlaybackStatus;
   QueueStatus? _localQueueStatus;
-  bool _isLeader = false;
 
   // Getters
   PlaybackStatus? get currentPlaybackStatus => _localPlaybackStatus;
 
   QueueStatus? get currentQueueStatus => _localQueueStatus;
-
-  bool get isLeader => _isLeader;
 
   Map<String, Device> get connectedDevices => _meshNetwork.connectedDevices;
 
@@ -369,16 +366,6 @@ class SyncManager {
 
     _meshNetwork.updatePlaybackStatus(_localPlaybackStatus!);
     _meshNetwork.updateQueueStatus(_localQueueStatus!);
-  }
-
-  void setAsLeader() {
-    _isLeader = true;
-    _timeSyncService.setAsLeader();
-  }
-
-  void setAsFollower() {
-    _isLeader = false;
-    _timeSyncService.setAsFollower();
   }
 
   void dispose() {
