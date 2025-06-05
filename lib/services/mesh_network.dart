@@ -66,7 +66,7 @@ class MeshNetwork {
       _timeSyncController.stream;
 
   void _setupMqttClient() {
-    _client = MqttServerClient('broker.hivemq.com', _device.ip);
+    _client = MqttServerClient('192.168.1.2', _device.ip);
     _client.port = 1883;
     _client.keepAlivePeriod = 20;
     _client.autoReconnect = true;

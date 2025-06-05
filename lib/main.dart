@@ -1,5 +1,6 @@
 // lib/main.dart
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:echosync/pages/player.dart';
 import 'package:echosync/pages/tabs/devices.dart';
 import 'package:echosync/pages/tabs/home.dart';
 import 'package:echosync/pages/tabs/library.dart';
@@ -38,6 +39,11 @@ class EchoSyncApp extends StatelessWidget {
               colorScheme:
                   lightDynamic ??
                   ColorScheme.fromSeed(seedColor: Colors.orange),
+              bottomSheetTheme: BottomSheetThemeData(showDragHandle: true),
+              progressIndicatorTheme: ProgressIndicatorThemeData(
+                year2023: false,
+              ),
+              sliderTheme: SliderThemeData(year2023: false),
             ),
             darkTheme: ThemeData(
               iconTheme: const IconThemeData(weight: 600),
@@ -47,6 +53,11 @@ class EchoSyncApp extends StatelessWidget {
                     seedColor: Colors.orange,
                     brightness: Brightness.dark,
                   ),
+              bottomSheetTheme: BottomSheetThemeData(showDragHandle: true),
+              progressIndicatorTheme: ProgressIndicatorThemeData(
+                year2023: false,
+              ),
+              sliderTheme: SliderThemeData(year2023: false),
             ),
             home: const EchoSyncHomePage(),
           );
@@ -94,6 +105,16 @@ class _EchoSyncHomePageState extends State<EchoSyncHomePage> {
     } catch (e) {
       debugPrint('Initialization error: $e');
     }
+  }
+
+  void show() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return Player();
+      },
+    );
   }
 
   @override
@@ -202,7 +223,7 @@ class _EchoSyncHomePageState extends State<EchoSyncHomePage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: show,
         tooltip: 'Player',
         child: const Icon(Symbols.play_arrow_rounded),
       ),
