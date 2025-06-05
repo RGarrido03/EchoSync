@@ -1,4 +1,6 @@
 // lib/bloc/sync_manager/sync_manager_bloc.dart
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/device.dart';
@@ -13,6 +15,10 @@ part 'sync_manager_state.dart';
 
 class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
   SyncManager? _syncManager;
+  StreamSubscription<PlaybackStatus>? _playbackSubscription;
+  StreamSubscription<QueueStatus>? _queueSubscription;
+  StreamSubscription<PlaybackStatus>? _meshPlaybackSubscription;
+  StreamSubscription<QueueStatus>? _meshQueueSubscription;
 
   SyncManager? get syncManager => _syncManager;
 
@@ -41,13 +47,30 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
         deviceIp: event.deviceIp,
       );
 
-      // Set BLoC reference in the service for direct event emission
-      _syncManager!.setBlocReference(this);
+      _playbackSubscription = _syncManager!.playbackStatusStream.listen((
+        status,
+      ) {
+        add(PlaybackStatusUpdated(status));
+      });
+
+      _queueSubscription = _syncManager!.queueStatusStream.listen((status) {
+        add(QueueStatusUpdated(status));
+      });
+
+      // Listen to mesh network streams for remote updates
+      _meshPlaybackSubscription = event.meshNetwork.playbackStatusStream.listen(
+        (status) {
+          _syncManager!.handleRemotePlaybackStatus(status);
+        },
+      );
+
+      _meshQueueSubscription = event.meshNetwork.queueStatusStream.listen((
+        status,
+      ) {
+        _syncManager!.handleRemoteQueueStatus(status);
+      });
 
       _syncManager!.initializeState();
-
-      // Also set reference in MeshNetwork for playback/queue updates
-      event.meshNetwork.setBlocReferences(syncManagerBloc: this);
 
       emit(
         SyncManagerReady(
@@ -147,6 +170,10 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
 
   @override
   Future<void> close() {
+    _playbackSubscription?.cancel();
+    _queueSubscription?.cancel();
+    _meshPlaybackSubscription?.cancel();
+    _meshQueueSubscription?.cancel();
     _syncManager?.dispose();
     return super.close();
   }

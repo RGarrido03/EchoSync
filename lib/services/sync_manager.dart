@@ -1,7 +1,6 @@
 // lib/services/sync_manager.dart
 import 'dart:async';
 
-import 'package:echosync/blocs/sync_manager/sync_manager_bloc.dart';
 import 'package:echosync/services/time_sync.dart';
 
 import '../data/device.dart';
@@ -15,10 +14,19 @@ class SyncManager {
   final MeshNetwork _meshNetwork;
   final TimeSyncService _timeSyncService;
   final String _deviceIp;
-  SyncManagerBloc? _syncManagerBloc;
 
   PlaybackStatus? _localPlaybackStatus;
   QueueStatus? _localQueueStatus;
+
+  final StreamController<PlaybackStatus> _playbackStatusController =
+      StreamController.broadcast();
+  final StreamController<QueueStatus> _queueStatusController =
+      StreamController.broadcast();
+
+  Stream<PlaybackStatus> get playbackStatusStream =>
+      _playbackStatusController.stream;
+
+  Stream<QueueStatus> get queueStatusStream => _queueStatusController.stream;
 
   // Getters
   PlaybackStatus? get currentPlaybackStatus => _localPlaybackStatus;
@@ -34,11 +42,6 @@ class SyncManager {
   }) : _meshNetwork = meshNetwork,
        _timeSyncService = timeSyncService,
        _deviceIp = deviceIp;
-
-  // Set BLoC reference for direct event emission
-  void setBlocReference(SyncManagerBloc syncManagerBloc) {
-    _syncManagerBloc = syncManagerBloc;
-  }
 
   // These methods will be called by MeshNetwork when it receives control messages
   void handlePlaybackControl(PlaybackControl control) {
@@ -134,17 +137,13 @@ class SyncManager {
   void _updateLocalPlaybackStatus(PlaybackStatus status) {
     _localPlaybackStatus = status;
     _meshNetwork.updatePlaybackStatus(status);
-
-    // Directly notify SyncManagerBloc
-    _syncManagerBloc?.add(PlaybackStatusUpdated(status));
+    _playbackStatusController.add(status);
   }
 
   void _updateLocalQueueStatus(QueueStatus status) {
     _localQueueStatus = status;
     _meshNetwork.updateQueueStatus(status);
-
-    // Directly notify SyncManagerBloc
-    _syncManagerBloc?.add(QueueStatusUpdated(status));
+    _queueStatusController.add(status);
   }
 
   void handleRemotePlaybackStatus(PlaybackStatus status) {
@@ -152,9 +151,7 @@ class SyncManager {
         status.lastUpdated.millisSinceEpoch >
             _localPlaybackStatus!.lastUpdated.millisSinceEpoch) {
       _localPlaybackStatus = status;
-
-      // Directly notify SyncManagerBloc
-      _syncManagerBloc?.add(PlaybackStatusUpdated(status));
+      _playbackStatusController.add(status);
     }
   }
 
@@ -163,9 +160,7 @@ class SyncManager {
         status.lastUpdated.millisSinceEpoch >
             _localQueueStatus!.lastUpdated.millisSinceEpoch) {
       _localQueueStatus = status;
-
-      // Directly notify SyncManagerBloc
-      _syncManagerBloc?.add(QueueStatusUpdated(status));
+      _queueStatusController.add(status);
     }
   }
 
@@ -369,6 +364,8 @@ class SyncManager {
   }
 
   void dispose() {
+    _playbackStatusController.close();
+    _queueStatusController.close();
     _timeSyncService.dispose();
   }
 }

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:echosync/blocs/time_sync/time_sync_bloc.dart';
 import 'package:echosync/data/protocol/base.dart';
 import 'package:echosync/data/protocol/sync.dart';
 
@@ -12,7 +11,11 @@ import 'mesh_network.dart';
 class TimeSyncService {
   final MeshNetwork _meshNetwork;
   final String _deviceIp;
-  TimeSyncBloc? _timeSyncBloc;
+
+  final StreamController<int> _clockOffsetController =
+      StreamController.broadcast();
+
+  Stream<int> get clockOffsetStream => _clockOffsetController.stream;
 
   bool _isLeader = false;
   int _clockOffset = 0;
@@ -25,11 +28,6 @@ class TimeSyncService {
     : _meshNetwork = meshNetwork,
       _deviceIp = deviceIp;
 
-  // Set BLoC reference for direct event emission
-  void setBlocReference(TimeSyncBloc timeSyncBloc) {
-    _timeSyncBloc = timeSyncBloc;
-  }
-
   bool get isLeader => _isLeader;
 
   int get clockOffset => _clockOffset;
@@ -38,8 +36,7 @@ class TimeSyncService {
     _isLeader = true;
     _clockOffset = 0;
     print('Device $_deviceIp is now the time sync leader');
-    // Directly notify TimeSyncBloc
-    _timeSyncBloc?.add(UpdateClockOffset(_clockOffset));
+    _clockOffsetController.add(_clockOffset);
   }
 
   void setAsFollower() {
@@ -131,8 +128,7 @@ class TimeSyncService {
     _clockOffset = (_clockOffset * 7 + offset) ~/ 8;
     print('Clock offset updated: ${_clockOffset}ms');
 
-    // Directly notify TimeSyncBloc
-    _timeSyncBloc?.add(UpdateClockOffset(_clockOffset));
+    _clockOffsetController.add(_clockOffset);
 
     final ack = TimeSyncMessage.responseAck(
       senderId: _deviceIp,
@@ -154,9 +150,7 @@ class TimeSyncService {
     final estimatedOffset = leaderTime - receiveTime;
 
     _clockOffset = (_clockOffset * 9 + estimatedOffset) ~/ 10;
-
-    // Directly notify TimeSyncBloc
-    _timeSyncBloc?.add(UpdateClockOffset(_clockOffset));
+    _clockOffsetController.add(_clockOffset);
   }
 
   void _performSync() {
@@ -210,5 +204,6 @@ class TimeSyncService {
 
   void dispose() {
     stopPeriodicSync();
+    _clockOffsetController.close();
   }
 }

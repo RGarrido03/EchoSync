@@ -1,4 +1,6 @@
 // lib/bloc/mesh_network/mesh_network_bloc.dart
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/device.dart';
@@ -9,6 +11,7 @@ part 'mesh_network_state.dart';
 
 class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
   MeshNetwork? _meshNetwork;
+  StreamSubscription<Map<String, Device>>? _devicesSubscription;
 
   MeshNetwork? get meshNetwork => _meshNetwork;
 
@@ -27,10 +30,9 @@ class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
       emit(MeshNetworkInitializing());
 
       _meshNetwork = MeshNetwork(deviceInfo: event.device);
-
-      // Set BLoC reference in the service for direct event emission
-      _meshNetwork!.setBlocReferences(meshNetworkBloc: this);
-
+      _devicesSubscription = _meshNetwork!.devicesStream.listen((devices) {
+        add(UpdateConnectedDevices(devices));
+      });
       await _meshNetwork!.connect();
 
       emit(
@@ -90,6 +92,7 @@ class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
 
   @override
   Future<void> close() {
+    _devicesSubscription?.cancel();
     _meshNetwork?.disconnect();
     return super.close();
   }

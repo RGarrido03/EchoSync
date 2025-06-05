@@ -2,9 +2,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:echosync/blocs/mesh_network/mesh_network_bloc.dart';
-import 'package:echosync/blocs/sync_manager/sync_manager_bloc.dart';
-import 'package:echosync/blocs/time_sync/time_sync_bloc.dart';
 import 'package:echosync/data/protocol/base.dart';
 import 'package:echosync/data/protocol/playback.dart';
 import 'package:echosync/data/protocol/queue.dart';
@@ -20,11 +17,6 @@ class MeshNetwork {
   final Map<String, Device> _connectedDevices = {};
   late MqttServerClient _client;
   bool _isConnected = false;
-
-  // BLoC references for direct event emission
-  late MeshNetworkBloc _meshNetworkBloc;
-  late SyncManagerBloc _syncManagerBloc;
-  late TimeSyncBloc _timeSyncBloc;
 
   // Topics
   static const String _baseTopic = 'echosync';
@@ -53,22 +45,25 @@ class MeshNetwork {
     _setupMqttClient();
   }
 
-  // Set BLoC references for direct event emission
-  void setBlocReferences({
-    MeshNetworkBloc? meshNetworkBloc,
-    SyncManagerBloc? syncManagerBloc,
-    TimeSyncBloc? timeSyncBloc,
-  }) {
-    if (meshNetworkBloc != null) {
-      _meshNetworkBloc = meshNetworkBloc;
-    }
-    if (syncManagerBloc != null) {
-      _syncManagerBloc = syncManagerBloc;
-    }
-    if (timeSyncBloc != null) {
-      _timeSyncBloc = timeSyncBloc;
-    }
-  }
+  final StreamController<Map<String, Device>> _devicesController =
+      StreamController.broadcast();
+  final StreamController<PlaybackStatus> _playbackStatusController =
+      StreamController.broadcast();
+  final StreamController<QueueStatus> _queueStatusController =
+      StreamController.broadcast();
+  final StreamController<TimeSyncMessage> _timeSyncController =
+      StreamController.broadcast();
+
+  // Expose streams for BLoCs to listen to
+  Stream<Map<String, Device>> get devicesStream => _devicesController.stream;
+
+  Stream<PlaybackStatus> get playbackStatusStream =>
+      _playbackStatusController.stream;
+
+  Stream<QueueStatus> get queueStatusStream => _queueStatusController.stream;
+
+  Stream<TimeSyncMessage> get timeSyncMessageStream =>
+      _timeSyncController.stream;
 
   void _setupMqttClient() {
     _client = MqttServerClient('broker.hivemq.com', _device.ip);
@@ -133,9 +128,8 @@ class MeshNetwork {
     print('Disconnected from MQTT broker');
     _isConnected = false;
     _connectedDevices.clear();
-
-    // Notify MeshNetworkBloc about disconnection
-    _meshNetworkBloc.add(UpdateConnectedDevices({}));
+    // Emit to stream instead of directly notifying BLoC
+    _devicesController.add({});
   }
 
   void _onMessageReceived(List<MqttReceivedMessage<MqttMessage>>? c) {
@@ -163,23 +157,23 @@ class MeshNetwork {
       case playbackStatusTopic:
         final status = PlaybackStatus.fromJson(data);
         _currentPlaybackStatus = status;
-        // Directly notify SyncManagerBloc
-        _syncManagerBloc.add(PlaybackStatusUpdated(status));
+        // Emit to stream instead of directly notifying BLoC
+        _playbackStatusController.add(status);
         break;
 
       case queueStatusTopic:
         final status = QueueStatus.fromJson(data);
         _currentQueueStatus = status;
-        // Directly notify SyncManagerBloc
-        _syncManagerBloc.add(QueueStatusUpdated(status));
+        // Emit to stream instead of directly notifying BLoC
+        _queueStatusController.add(status);
         break;
 
       case deviceRegistryTopic:
         final registry = DeviceRegistry.fromJson(data);
         _connectedDevices.clear();
         _connectedDevices.addAll(registry.devices);
-        // Directly notify MeshNetworkBloc
-        _meshNetworkBloc.add(UpdateConnectedDevices(_connectedDevices));
+        // Emit to stream instead of directly notifying BLoC
+        _devicesController.add(Map.from(_connectedDevices));
         break;
 
       case playbackControlTopic:
@@ -212,8 +206,7 @@ class MeshNetwork {
       case timeSyncTopic:
         final syncMessage = TimeSyncMessage.fromJson(data);
         if (syncMessage.senderId != _device.ip) {
-          // Handle time sync in TimeSyncService logic
-          _handleTimeSyncMessage(syncMessage);
+          _timeSyncController.add(syncMessage);
         }
         break;
     }
@@ -243,7 +236,8 @@ class MeshNetwork {
       lastUpdated: NetworkTime.now(),
     );
     await _publishMessage(deviceRegistryTopic, registry.toJson(), retain: true);
-    _meshNetworkBloc.add(UpdateConnectedDevices(_connectedDevices));
+    // Emit to stream instead of directly notifying BLoC
+    _devicesController.add(Map.from(_connectedDevices));
   }
 
   // Forward playback control to SyncManager
@@ -256,11 +250,6 @@ class MeshNetwork {
   // Forward queue control to SyncManager
   void _handleQueueControl(QueueControl control) {
     print('Received queue control: ${control.command}');
-  }
-
-  // Forward time sync message to TimeSyncService
-  void _handleTimeSyncMessage(TimeSyncMessage message) {
-    _timeSyncBloc.add(TimeSyncMessageReceived(message));
   }
 
   Future<void> _publishMessage(
@@ -317,5 +306,9 @@ class MeshNetwork {
 
   void dispose() {
     disconnect();
+    _devicesController.close();
+    _playbackStatusController.close();
+    _queueStatusController.close();
+    _timeSyncController.close();
   }
 }

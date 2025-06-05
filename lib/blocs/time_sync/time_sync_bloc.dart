@@ -1,4 +1,6 @@
 // lib/bloc/time_sync/time_sync_bloc.dart
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/protocol/sync.dart';
@@ -10,6 +12,8 @@ part 'time_sync_state.dart';
 
 class TimeSyncBloc extends Bloc<TimeSyncEvent, TimeSyncState> {
   TimeSyncService? _timeSyncService;
+  StreamSubscription<int>? _clockOffsetSubscription;
+  StreamSubscription<TimeSyncMessage>? _timeSyncMessageSubscription;
 
   TimeSyncService? get timeSyncService => _timeSyncService;
 
@@ -33,9 +37,16 @@ class TimeSyncBloc extends Bloc<TimeSyncEvent, TimeSyncState> {
         deviceIp: event.deviceIp,
       );
 
-      // Set BLoC reference in the service for direct event emission
-      _timeSyncService!.setBlocReference(this);
-      event.meshNetwork.setBlocReferences(timeSyncBloc: this);
+      _clockOffsetSubscription = _timeSyncService!.clockOffsetStream.listen((
+        offset,
+      ) {
+        add(UpdateClockOffset(offset));
+      });
+
+      _timeSyncMessageSubscription = event.meshNetwork.timeSyncMessageStream
+          .listen((message) {
+            add(TimeSyncMessageReceived(message));
+          });
 
       _timeSyncService!.startPeriodicSync();
 
@@ -105,6 +116,8 @@ class TimeSyncBloc extends Bloc<TimeSyncEvent, TimeSyncState> {
 
   @override
   Future<void> close() {
+    _clockOffsetSubscription?.cancel();
+    _timeSyncMessageSubscription?.cancel();
     _timeSyncService?.dispose();
     return super.close();
   }
