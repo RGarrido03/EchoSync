@@ -61,7 +61,9 @@ class Player extends StatelessWidget {
                   children: [
                     IconButton(
                       icon: const Icon(Symbols.skip_previous_rounded),
-                      onPressed: () {},
+                      onPressed: () {
+                        context.read<SyncManagerBloc>().add(PreviousTrack());
+                      },
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
                     IconButton.filledTonal(
@@ -90,7 +92,9 @@ class Player extends StatelessWidget {
                     ),
                     IconButton(
                       icon: const Icon(Symbols.skip_next_rounded),
-                      onPressed: () {},
+                      onPressed: () {
+                        context.read<SyncManagerBloc>().add(NextTrack());
+                      },
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ],
