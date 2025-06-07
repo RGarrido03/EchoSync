@@ -8,7 +8,10 @@ part of 'playback.dart';
 
 PlaybackStatus _$PlaybackStatusFromJson(Map<String, dynamic> json) =>
     PlaybackStatus(
-      currentSong: json['currentSong'] as String?,
+      currentSong:
+          json['currentSong'] == null
+              ? null
+              : Song.fromJson(json['currentSong'] as Map<String, dynamic>),
       position: (json['position'] as num).toInt(),
       isPlaying: json['isPlaying'] as bool,
       currentIndex: (json['currentIndex'] as num).toInt(),

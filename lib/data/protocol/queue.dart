@@ -1,3 +1,4 @@
+import 'package:echosync/data/song.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 import 'base.dart';
@@ -8,7 +9,7 @@ part 'queue.g.dart';
 // Complete queue status (retained message)
 @JsonSerializable()
 class QueueStatus {
-  final List<String> songs; // List of song hashes
+  final List<Song> songs; // List of song hashes
   final int currentIndex;
   final bool shuffleMode;
   final RepeatMode repeatMode;
@@ -41,14 +42,14 @@ class QueueControl extends SyncMessage {
 
   factory QueueControl.add({
     required String deviceId,
-    required String songHash,
+    required Song song,
     int? position,
   }) {
     return QueueControl(
       command: 'add',
       deviceId: deviceId,
       params: {
-        'songHash': songHash,
+        'song': song.toJson(),
         if (position != null) 'position': position,
       },
     );
@@ -91,6 +92,17 @@ class QueueControl extends SyncMessage {
 
   factory QueueControl.previous({required String deviceId}) {
     return QueueControl(command: 'previous', deviceId: deviceId);
+  }
+
+  factory QueueControl.playAtIndex({
+    required String deviceId,
+    required int index,
+  }) {
+    return QueueControl(
+      command: 'play_at_index',
+      deviceId: deviceId,
+      params: {'index': index},
+    );
   }
 
   factory QueueControl.fromJson(Map<String, dynamic> json) =>

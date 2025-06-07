@@ -16,10 +16,10 @@ class InitializeSyncManager extends SyncManagerEvent {
 }
 
 class PlayMusic extends SyncManagerEvent {
-  final String? songHash;
+  final Song? song;
   final int? position;
 
-  PlayMusic({this.songHash, this.position});
+  PlayMusic({this.song, this.position});
 }
 
 class PauseMusic extends SyncManagerEvent {}
@@ -35,10 +35,10 @@ class NextTrack extends SyncManagerEvent {}
 class PreviousTrack extends SyncManagerEvent {}
 
 class AddSongToQueue extends SyncManagerEvent {
-  final String songHash;
+  final Song song;
   final int? position;
 
-  AddSongToQueue(this.songHash, {this.position});
+  AddSongToQueue(this.song, {this.position});
 }
 
 class PlaybackStatusUpdated extends SyncManagerEvent {
@@ -51,4 +51,10 @@ class QueueStatusUpdated extends SyncManagerEvent {
   final QueueStatus status;
 
   QueueStatusUpdated(this.status);
+}
+
+class PlaySongAtIndex extends SyncManagerEvent {
+  final int index;
+
+  PlaySongAtIndex(this.index);
 }

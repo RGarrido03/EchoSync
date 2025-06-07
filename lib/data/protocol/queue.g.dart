@@ -7,7 +7,10 @@ part of 'queue.dart';
 // **************************************************************************
 
 QueueStatus _$QueueStatusFromJson(Map<String, dynamic> json) => QueueStatus(
-  songs: (json['songs'] as List<dynamic>).map((e) => e as String).toList(),
+  songs:
+      (json['songs'] as List<dynamic>)
+          .map((e) => Song.fromJson(e as Map<String, dynamic>))
+          .toList(),
   currentIndex: (json['currentIndex'] as num).toInt(),
   shuffleMode: json['shuffleMode'] as bool,
   repeatMode: $enumDecode(_$RepeatModeEnumMap, json['repeatMode']),

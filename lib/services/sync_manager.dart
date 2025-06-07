@@ -1,4 +1,3 @@
-// lib/services/sync_manager.dart
 import 'dart:async';
 
 import 'package:echosync/services/time_sync.dart';
@@ -8,6 +7,7 @@ import '../data/protocol/base.dart';
 import '../data/protocol/enums.dart';
 import '../data/protocol/playback.dart';
 import '../data/protocol/queue.dart';
+import '../data/song.dart';
 import 'mesh_network.dart';
 
 class SyncManager {
@@ -28,7 +28,6 @@ class SyncManager {
 
   Stream<QueueStatus> get queueStatusStream => _queueStatusController.stream;
 
-  // Getters
   PlaybackStatus? get currentPlaybackStatus => _localPlaybackStatus;
 
   QueueStatus? get currentQueueStatus => _localQueueStatus;
@@ -43,7 +42,6 @@ class SyncManager {
        _timeSyncService = timeSyncService,
        _deviceIp = deviceIp;
 
-  // These methods will be called by MeshNetwork when it receives control messages
   void handlePlaybackControl(PlaybackControl control) {
     try {
       final localScheduledTime = _timeSyncService.networkToLocalTime(
@@ -72,9 +70,11 @@ class SyncManager {
     switch (control.command) {
       case 'play':
         final position = control.params?['position'] as int?;
-        final songHash = control.params?['songHash'] as String?;
+        final songData = control.params?['song'] as Map<String, dynamic>?;
+        final song = songData != null ? Song.fromJson(songData) : null;
+
         newStatus = PlaybackStatus(
-          currentSong: songHash ?? newStatus.currentSong,
+          currentSong: song ?? newStatus.currentSong,
           position: position ?? newStatus.position,
           isPlaying: true,
           currentIndex: newStatus.currentIndex,
@@ -164,19 +164,32 @@ class SyncManager {
     }
   }
 
-  // Public methods for controlling playback
-  Future<void> play({
-    String? songHash,
-    int? position,
-    int delayMs = 100,
-  }) async {
+  Future<void> playAtIndex(int index, {int delayMs = 100}) async {
+    if (_localQueueStatus == null ||
+        index < 0 ||
+        index >= _localQueueStatus!.songs.length) {
+      return;
+    }
+
+    // Update queue to set the new current index
+    final control = QueueControl.playAtIndex(deviceId: _deviceIp, index: index);
+    await _meshNetwork.sendQueueControl(control);
+    handleQueueControl(control);
+
+    // Get the song at the specified index and play it
+    final song = _localQueueStatus!.songs[index];
+    await play(song: song, position: 0, delayMs: delayMs);
+  }
+
+  // Updated public methods for controlling playback
+  Future<void> play({Song? song, int? position, int delayMs = 100}) async {
     final scheduledTime = NetworkTime(
       _timeSyncService.getNetworkTime().millisSinceEpoch + delayMs,
     );
     final control = PlaybackControl.play(
       scheduledTime: scheduledTime,
       deviceId: _deviceIp,
-      songHash: songHash,
+      song: song,
       position: position,
     );
     await _meshNetwork.sendPlaybackControl(control);
@@ -208,10 +221,10 @@ class SyncManager {
     handlePlaybackControl(control);
   }
 
-  Future<void> addToQueue(String songHash, {int? position}) async {
+  Future<void> addToQueue(Song song, {int? position}) async {
     final control = QueueControl.add(
       deviceId: _deviceIp,
-      songHash: songHash,
+      song: song,
       position: position,
     );
     await _meshNetwork.sendQueueControl(control);
@@ -237,14 +250,15 @@ class SyncManager {
 
     switch (control.command) {
       case 'add':
-        final songHash = control.params?['songHash'] as String?;
+        final songData = control.params?['song'] as Map<String, dynamic>?;
         final position = control.params?['position'] as int?;
-        if (songHash != null) {
-          final newSongs = List<String>.from(newStatus.songs);
+        if (songData != null) {
+          final song = Song.fromJson(songData);
+          final newSongs = List<Song>.from(newStatus.songs);
           if (position != null && position < newSongs.length) {
-            newSongs.insert(position, songHash);
+            newSongs.insert(position, song);
           } else {
-            newSongs.add(songHash);
+            newSongs.add(song);
           }
 
           newStatus = QueueStatus(
@@ -261,7 +275,7 @@ class SyncManager {
       case 'remove':
         final index = control.params?['index'] as int?;
         if (index != null && index < newStatus.songs.length) {
-          final newSongs = List<String>.from(newStatus.songs);
+          final newSongs = List<Song>.from(newStatus.songs);
           newSongs.removeAt(index);
           int newCurrentIndex = newStatus.currentIndex;
           if (index <= newCurrentIndex && newCurrentIndex > 0) {
@@ -280,11 +294,32 @@ class SyncManager {
         break;
 
       case 'replace':
-        final songs = control.params?['songs'] as List?;
-        if (songs != null) {
+        final songsData = control.params?['songs'] as List?;
+        if (songsData != null) {
+          final songs =
+              songsData
+                  .map(
+                    (songData) =>
+                        Song.fromJson(songData as Map<String, dynamic>),
+                  )
+                  .toList();
           newStatus = QueueStatus(
-            songs: songs.cast<String>(),
+            songs: songs,
             currentIndex: 0,
+            shuffleMode: newStatus.shuffleMode,
+            repeatMode: newStatus.repeatMode,
+            lastUpdated: _timeSyncService.getNetworkTime(),
+            deviceId: _deviceIp,
+          );
+        }
+        break;
+
+      case 'play_at_index': // Add this new case
+        final index = control.params?['index'] as int?;
+        if (index != null && index >= 0 && index < newStatus.songs.length) {
+          newStatus = QueueStatus(
+            songs: newStatus.songs,
+            currentIndex: index,
             shuffleMode: newStatus.shuffleMode,
             repeatMode: newStatus.repeatMode,
             lastUpdated: _timeSyncService.getNetworkTime(),

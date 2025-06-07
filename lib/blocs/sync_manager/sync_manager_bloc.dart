@@ -1,6 +1,7 @@
 // lib/bloc/sync_manager/sync_manager_bloc.dart
 import 'dart:async';
 
+import 'package:echosync/data/song.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/device.dart';
@@ -30,6 +31,7 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     on<NextTrack>(_onNext);
     on<PreviousTrack>(_onPrevious);
     on<AddSongToQueue>(_onAddToQueue);
+    on<PlaySongAtIndex>(_onPlayAtIndex);
     on<PlaybackStatusUpdated>(_onPlaybackUpdated);
     on<QueueStatusUpdated>(_onQueueUpdated);
   }
@@ -87,10 +89,7 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
 
   Future<void> _onPlay(PlayMusic event, Emitter<SyncManagerState> emit) async {
     if (_syncManager != null) {
-      await _syncManager!.play(
-        songHash: event.songHash,
-        position: event.position,
-      );
+      await _syncManager!.play(song: event.song, position: event.position);
     }
   }
 
@@ -132,7 +131,16 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     Emitter<SyncManagerState> emit,
   ) async {
     if (_syncManager != null) {
-      await _syncManager!.addToQueue(event.songHash, position: event.position);
+      await _syncManager!.addToQueue(event.song, position: event.position);
+    }
+  }
+
+  Future<void> _onPlayAtIndex(
+    PlaySongAtIndex event,
+    Emitter<SyncManagerState> emit,
+  ) async {
+    if (_syncManager != null) {
+      await _syncManager!.playAtIndex(event.index);
     }
   }
 

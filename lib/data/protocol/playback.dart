@@ -1,23 +1,22 @@
-// lib/messages/playback.dart
 import 'package:json_annotation/json_annotation.dart';
 
+import '../song.dart';
 import 'base.dart';
 import 'enums.dart';
 
 part 'playback.g.dart';
 
-// Complete playback status (retained message)
 @JsonSerializable()
 class PlaybackStatus {
-  final String? currentSong; // hash
-  final int position; // Position in milliseconds
+  final Song? currentSong; // Changed from String? to Song?
+  final int position;
   final bool isPlaying;
   final int currentIndex;
   final double volume;
   final bool shuffleMode;
   final RepeatMode repeatMode;
   final NetworkTime lastUpdated;
-  final String deviceId; // Which device last updated this
+  final String deviceId;
 
   const PlaybackStatus({
     this.currentSong,
@@ -37,7 +36,6 @@ class PlaybackStatus {
   Map<String, dynamic> toJson() => _$PlaybackStatusToJson(this);
 }
 
-// Control messages for playback topic
 @JsonSerializable()
 class PlaybackControl extends SyncMessage {
   final NetworkTime scheduledTime;
@@ -54,7 +52,7 @@ class PlaybackControl extends SyncMessage {
   factory PlaybackControl.play({
     required NetworkTime scheduledTime,
     required String deviceId,
-    String? songHash,
+    Song? song,
     int? position,
   }) {
     return PlaybackControl(
@@ -62,7 +60,7 @@ class PlaybackControl extends SyncMessage {
       scheduledTime: scheduledTime,
       deviceIp: deviceId,
       params: {
-        if (songHash != null) 'songHash': songHash,
+        if (song != null) 'song': song.toJson(),
         if (position != null) 'position': position,
       },
     );

@@ -11,6 +11,30 @@ class Player extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<SyncManagerBloc, SyncManagerState>(
       builder: (context, state) {
+        if (state is SyncManagerInitial) {
+          return Center(child: CircularProgressIndicator());
+        }
+        if (state is SyncManagerError) {
+          return Center(
+            child: Text(
+              'Error: ${state.error}',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
+          );
+        }
+        if (state is SyncManagerInitializing) {
+          return Center(child: CircularProgressIndicator());
+        }
+        if (state is! SyncManagerReady) {
+          return Center(
+            child: Text(
+              'Sync Manager is not ready',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          );
+        }
         return Wrap(
           children: [
             Column(
@@ -19,7 +43,8 @@ class Player extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16.0),
                   child: Image(
                     image: NetworkImage(
-                      'https://muzikercdn.com/uploads/products/20333/2033327/main_1893cd66.jpg',
+                      state.playbackStatus?.currentSong?.coverUrl?.toString() ??
+                          'https://muzikercdn.com/uploads/products/20333/2033327/main_1893cd66.jpg',
                     ),
                     fit: BoxFit.fill,
                     width: MediaQuery.sizeOf(context).width / 2,
@@ -43,13 +68,13 @@ class Player extends StatelessWidget {
                 ),
                 SizedBox(height: 16),
                 Text(
-                  'Wasted Love',
+                  state.playbackStatus?.currentSong?.title ?? 'Wasted Love',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
-                  'JJ - Eurovision 2025',
+                  '${state.playbackStatus?.currentSong?.artist} - ${state.playbackStatus?.currentSong?.album}',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -70,12 +95,8 @@ class Player extends StatelessWidget {
                       icon: const Icon(Symbols.play_arrow_rounded, fill: 1),
                       selectedIcon: const Icon(Symbols.pause_rounded, fill: 1),
                       color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      isSelected:
-                          state is SyncManagerReady
-                              ? state.playbackStatus?.isPlaying ?? false
-                              : false,
+                      isSelected: state.playbackStatus?.isPlaying ?? false,
                       onPressed: () {
-                        if (state is! SyncManagerReady) return;
                         context.read<SyncManagerBloc>().add(
                           state.playbackStatus!.isPlaying
                               ? PauseMusic()

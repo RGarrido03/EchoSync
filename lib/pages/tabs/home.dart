@@ -1,4 +1,5 @@
 // lib/pages/tabs/home.dart
+import 'package:echosync/data/song.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -12,8 +13,7 @@ class HomeTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: ListView(
         children: [
           _buildDeviceInfo(context),
           const SizedBox(height: 20),
@@ -87,7 +87,7 @@ class HomeTab extends StatelessWidget {
                   children: [
                     if (playbackStatus != null) ...[
                       Text(
-                        'Current Song: ${playbackStatus.currentSong ?? 'None'}',
+                        'Current Song: ${playbackStatus.currentSong?.title ?? 'None'}',
                       ),
                       Text('Position: ${playbackStatus.position}ms'),
                       Text('Playing: ${playbackStatus.isPlaying}'),
@@ -168,10 +168,19 @@ class HomeTab extends StatelessWidget {
                 Text('Queue', style: Theme.of(context).textTheme.titleLarge),
                 ElevatedButton(
                   onPressed: () {
-                    final songHash =
-                        'song_${DateTime.now().millisecondsSinceEpoch}';
                     context.read<SyncManagerBloc>().add(
-                      AddSongToQueue(songHash),
+                      AddSongToQueue(
+                        Song(
+                          hash: 'song_${DateTime.now().millisecondsSinceEpoch}',
+                          title: "Wasted Love",
+                          artist: "JJ",
+                          album: "ESC 2025",
+                          coverUrl: Uri.parse(
+                            'https://muzikercdn.com/uploads/products/20333/2033327/main_1893cd66.jpg',
+                          ),
+                          duration: 180,
+                        ),
+                      ),
                     );
                   },
                   child: const Text('Add Song'),
@@ -206,12 +215,21 @@ class HomeTab extends StatelessWidget {
                             final isCurrentSong =
                                 index == queueStatus.currentIndex;
                             return ListTile(
-                              title: Text(queueStatus.songs[index]),
+                              title: Text(queueStatus.songs[index].title),
+                              subtitle: Text(queueStatus.songs[index].artist),
+                              onTap: () {
+                                context.read<SyncManagerBloc>().add(
+                                  PlaySongAtIndex(index),
+                                );
+                              },
                               leading:
                                   isCurrentSong
-                                      ? const Icon(
+                                      ? Icon(
                                         Icons.play_arrow,
-                                        color: Colors.blue,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
                                       )
                                       : Text('${index + 1}'),
                               trailing: IconButton(
