@@ -51,7 +51,24 @@ class Player extends StatelessWidget {
                       width: MediaQuery.sizeOf(context).width / 2,
                       height: MediaQuery.sizeOf(context).width / 2,
                       errorBuilder: (context, error, stackTrace) {
-                        return const Text('Failed to load image');
+                        return Container(
+                          color:
+                              Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHigh,
+                          height: MediaQuery.sizeOf(context).width / 2,
+                          width: MediaQuery.sizeOf(context).width / 2,
+                          child: Center(
+                            child: Icon(
+                              Symbols.music_note_rounded,
+                              size: 48,
+                              color:
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        );
                       },
                     ),
                   ),

@@ -1,9 +1,9 @@
 // lib/services/audio_file_service.dart
 import 'dart:io';
 
-import 'package:audiotags/audiotags.dart';
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:metadata_god/metadata_god.dart';
 
 import '../data/song.dart';
 
@@ -13,7 +13,6 @@ class AudioFileService {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.audio,
         allowMultiple: true,
-        allowedExtensions: ['mp3', 'm4a', 'flac', 'wav', 'ogg'],
       );
 
       if (result != null && result.files.isNotEmpty) {
@@ -62,16 +61,16 @@ class AudioFileService {
 
       final bytes = await file.readAsBytes();
       final hash = sha256.convert(bytes).toString();
-      Tag? tag = await AudioTags.read(filePath);
-      int duration = tag?.duration ?? 0;
+      Metadata tag = await MetadataGod.readMetadata(file: filePath);
+      int duration = ((tag.durationMs ?? 0) / 1000).toInt();
 
       return Song(
         hash: hash,
-        title: tag?.title ?? _getFileNameWithoutExtension(filePath),
-        artist: tag?.trackArtist ?? 'Unknown Artist',
-        album: tag?.album ?? 'Unknown Album',
+        title: tag.title ?? _getFileNameWithoutExtension(filePath),
+        artist: tag.artist ?? 'Unknown Artist',
+        album: tag.album ?? 'Unknown Album',
         duration: duration,
-        cover: tag?.pictures.first.bytes,
+        cover: tag.picture?.data,
       );
     } catch (e) {
       print('Error creating song from file: $e');

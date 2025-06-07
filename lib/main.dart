@@ -8,6 +8,7 @@ import 'package:echosync/services/device_info.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:metadata_god/metadata_god.dart';
 
 import 'blocs/mesh_network/mesh_network_bloc.dart';
 import 'blocs/sync_manager/sync_manager_bloc.dart';
@@ -15,7 +16,9 @@ import 'blocs/time_sync/time_sync_bloc.dart';
 import 'data/device.dart';
 import 'navigation/nav_item.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await MetadataGod.initialize();
   runApp(const EchoSyncApp());
 }
 
