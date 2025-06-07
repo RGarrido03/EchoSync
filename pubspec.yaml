@@ -50,9 +50,11 @@ dependencies:
   mqtt_server: ^1.0.0
   json_annotation: ^4.9.0
 
-  crypto: any
+  crypto: ^3.0.6
   flutter_bloc: ^9.1.1
   bloc: ^9.0.0
+  file_picker: ^10.1.9
+  audiotags: ^1.4.5
 dev_dependencies:
   flutter_test:
     sdk: flutter

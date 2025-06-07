@@ -12,8 +12,10 @@ Song _$SongFromJson(Map<String, dynamic> json) => Song(
   artist: json['artist'] as String,
   album: json['album'] as String,
   duration: (json['duration'] as num).toInt(),
-  coverUrl:
-      json['coverUrl'] == null ? null : Uri.parse(json['coverUrl'] as String),
+  cover: _$JsonConverterFromJson<List<dynamic>, Uint8List>(
+    json['cover'],
+    const Uint8ListJsonConverter().fromJson,
+  ),
 );
 
 Map<String, dynamic> _$SongToJson(Song instance) => <String, dynamic>{
@@ -22,5 +24,18 @@ Map<String, dynamic> _$SongToJson(Song instance) => <String, dynamic>{
   'artist': instance.artist,
   'album': instance.album,
   'duration': instance.duration,
-  'coverUrl': instance.coverUrl?.toString(),
+  'cover': _$JsonConverterToJson<List<dynamic>, Uint8List>(
+    instance.cover,
+    const Uint8ListJsonConverter().toJson,
+  ),
 };
+
+Value? _$JsonConverterFromJson<Json, Value>(
+  Object? json,
+  Value? Function(Json json) fromJson,
+) => json == null ? null : fromJson(json as Json);
+
+Json? _$JsonConverterToJson<Json, Value>(
+  Value? value,
+  Json? Function(Value value) toJson,
+) => value == null ? null : toJson(value);

@@ -58,3 +58,22 @@ class PlaySongAtIndex extends SyncManagerEvent {
 
   PlaySongAtIndex(this.index);
 }
+
+class PickAndAddSongToQueue extends SyncManagerEvent {
+  final int? position;
+
+  PickAndAddSongToQueue({this.position});
+}
+
+class PickAndAddMultipleSongsToQueue extends SyncManagerEvent {
+  final int? position;
+
+  PickAndAddMultipleSongsToQueue({this.position});
+}
+
+class AddSongFromPath extends SyncManagerEvent {
+  final String filePath;
+  final int? position;
+
+  AddSongFromPath(this.filePath, {this.position});
+}

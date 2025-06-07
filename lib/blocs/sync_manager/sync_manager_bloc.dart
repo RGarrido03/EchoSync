@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/device.dart';
 import '../../data/protocol/playback.dart';
 import '../../data/protocol/queue.dart';
+import '../../services/audio_file_service.dart';
 import '../../services/mesh_network.dart';
 import '../../services/sync_manager.dart';
 import '../../services/time_sync.dart';
@@ -32,6 +33,9 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     on<PreviousTrack>(_onPrevious);
     on<AddSongToQueue>(_onAddToQueue);
     on<PlaySongAtIndex>(_onPlayAtIndex);
+    on<PickAndAddSongToQueue>(_onPickAndAddSong); // Add this
+    on<PickAndAddMultipleSongsToQueue>(_onPickAndAddMultipleSongs); // Add this
+    on<AddSongFromPath>(_onAddSongFromPath); // Add this
     on<PlaybackStatusUpdated>(_onPlaybackUpdated);
     on<QueueStatusUpdated>(_onQueueUpdated);
   }
@@ -173,6 +177,51 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
               _syncManager?.connectedDevices ?? currentState.connectedDevices,
         ),
       );
+    }
+  }
+
+  Future<void> _onPickAndAddSong(
+    PickAndAddSongToQueue event,
+    Emitter<SyncManagerState> emit,
+  ) async {
+    try {
+      Song? song = await AudioFileService.pickSingleAudioFile();
+      if (song != null && _syncManager != null) {
+        await _syncManager!.addToQueue(song, position: event.position);
+      }
+    } catch (e) {
+      print('Error picking and adding song: $e');
+    }
+  }
+
+  Future<void> _onPickAndAddMultipleSongs(
+    PickAndAddMultipleSongsToQueue event,
+    Emitter<SyncManagerState> emit,
+  ) async {
+    try {
+      List<Song>? songs = await AudioFileService.pickAudioFiles();
+      if (songs != null && _syncManager != null) {
+        for (int i = 0; i < songs.length; i++) {
+          int? position = event.position != null ? event.position! + i : null;
+          await _syncManager!.addToQueue(songs[i], position: position);
+        }
+      }
+    } catch (e) {
+      print('Error picking and adding multiple songs: $e');
+    }
+  }
+
+  Future<void> _onAddSongFromPath(
+    AddSongFromPath event,
+    Emitter<SyncManagerState> emit,
+  ) async {
+    try {
+      Song? song = await AudioFileService.createSongFromPath(event.filePath);
+      if (song != null && _syncManager != null) {
+        await _syncManager!.addToQueue(song, position: event.position);
+      }
+    } catch (e) {
+      print('Error adding song from path: $e');
     }
   }
 

@@ -1,5 +1,4 @@
 // lib/pages/tabs/home.dart
-import 'package:echosync/data/song.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -172,18 +171,7 @@ class HomeTab extends StatelessWidget {
                 ElevatedButton(
                   onPressed: () {
                     context.read<SyncManagerBloc>().add(
-                      AddSongToQueue(
-                        Song(
-                          hash: 'song_${DateTime.now().millisecondsSinceEpoch}',
-                          title: "Wasted Love",
-                          artist: "JJ",
-                          album: "ESC 2025",
-                          coverUrl: Uri.parse(
-                            'https://muzikercdn.com/uploads/products/20333/2033327/main_1893cd66.jpg',
-                          ),
-                          duration: 177,
-                        ),
-                      ),
+                      PickAndAddSongToQueue(),
                     );
                   },
                   child: const Text('Add Song'),
