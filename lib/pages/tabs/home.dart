@@ -89,7 +89,7 @@ class HomeTab extends StatelessWidget {
                       Text(
                         'Current Song: ${playbackStatus.currentSong?.title ?? 'None'}',
                       ),
-                      Text('Position: ${playbackStatus.position}ms'),
+                      Text('Position: ${playbackStatus.position}s'),
                       Text('Playing: ${playbackStatus.isPlaying}'),
                       Text('Volume: ${(playbackStatus.volume * 100).toInt()}%'),
                       const SizedBox(height: 8),
@@ -135,7 +135,10 @@ class HomeTab extends StatelessWidget {
                           child: Slider(
                             value: (playbackStatus?.position ?? 0).toDouble(),
                             min: 0,
-                            max: 300000, // 5 minutes
+                            max:
+                                state.playbackStatus?.currentSong?.duration
+                                    .toDouble() ??
+                                180, // 5 minutes
                             onChanged: (value) {
                               context.read<SyncManagerBloc>().add(
                                 SeekToPosition(value.toInt()),
@@ -178,7 +181,7 @@ class HomeTab extends StatelessWidget {
                           coverUrl: Uri.parse(
                             'https://muzikercdn.com/uploads/products/20333/2033327/main_1893cd66.jpg',
                           ),
-                          duration: 180,
+                          duration: 177,
                         ),
                       ),
                     );

@@ -122,14 +122,11 @@ class Player extends StatelessWidget {
                 ),
                 SizedBox(height: 16),
                 Slider(
-                  value:
-                      (state is SyncManagerReady
-                              ? state.playbackStatus?.position
-                              : 0)
-                          ?.toDouble() ??
-                      0.0,
+                  value: state.playbackStatus?.position.toDouble() ?? 0.0,
                   min: 0,
-                  max: 300000, // TODO: 5 minutes
+                  max:
+                      state.playbackStatus?.currentSong?.duration.toDouble() ??
+                      180,
                   onChanged: (value) {
                     context.read<SyncManagerBloc>().add(
                       SeekToPosition(value.toInt()),
