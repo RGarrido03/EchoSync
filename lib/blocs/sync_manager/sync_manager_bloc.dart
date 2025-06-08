@@ -23,7 +23,6 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
   StreamSubscription<QueueStatus>? _queueSubscription;
   StreamSubscription<PlaybackStatus>? _meshPlaybackSubscription;
   StreamSubscription<QueueStatus>? _meshQueueSubscription;
-  StreamSubscription<Duration>? _positionSubscription;
 
   SyncManager? get syncManager => _syncManager;
 
@@ -82,7 +81,7 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
         _syncManager!.handleRemoteQueueStatus(status);
       });
 
-      _positionSubscription = audioHandler.positionStream.listen((position) {
+      audioHandler.positionStream.listen((position) {
         if (_syncManager != null) {
           add(
             PlaybackStatusUpdated(
