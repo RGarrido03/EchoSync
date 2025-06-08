@@ -29,11 +29,11 @@ class NetworkTime {
   }
 
   factory NetworkTime.fromJson(Map<String, dynamic> json) {
-    return NetworkTime(json['millisSinceEpoch'] as int);
+    return _$NetworkTimeFromJson(json);
   }
 
   Map<String, dynamic> toJson() {
-    return {'millisSinceEpoch': millisSinceEpoch};
+    return _$NetworkTimeToJson(this);
   }
 
   @override
