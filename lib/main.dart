@@ -59,9 +59,11 @@ class EchoSyncApp extends StatelessWidget {
                   ColorScheme.fromSeed(seedColor: Colors.orange),
               bottomSheetTheme: BottomSheetThemeData(showDragHandle: true),
               progressIndicatorTheme: ProgressIndicatorThemeData(
-                year2023: false,
+                year2023: false, // ignore: deprecated_member_use
               ),
-              sliderTheme: SliderThemeData(year2023: false),
+              sliderTheme: SliderThemeData(
+                year2023: false, // ignore: deprecated_member_use
+              ),
             ),
             darkTheme: ThemeData(
               iconTheme: const IconThemeData(weight: 600),
@@ -73,9 +75,11 @@ class EchoSyncApp extends StatelessWidget {
                   ),
               bottomSheetTheme: BottomSheetThemeData(showDragHandle: true),
               progressIndicatorTheme: ProgressIndicatorThemeData(
-                year2023: false,
+                year2023: false, // ignore: deprecated_member_use
               ),
-              sliderTheme: SliderThemeData(year2023: false),
+              sliderTheme: SliderThemeData(
+                year2023: false, // ignore: deprecated_member_use
+              ),
             ),
             home: const EchoSyncHomePage(),
           );
