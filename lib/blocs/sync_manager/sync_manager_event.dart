@@ -17,7 +17,7 @@ class InitializeSyncManager extends SyncManagerEvent {
 
 class PlayMusic extends SyncManagerEvent {
   final Song? song;
-  final int? position;
+  final Duration? position;
 
   PlayMusic({this.song, this.position});
 }
@@ -25,7 +25,7 @@ class PlayMusic extends SyncManagerEvent {
 class PauseMusic extends SyncManagerEvent {}
 
 class SeekToPosition extends SyncManagerEvent {
-  final int position;
+  final Duration position;
 
   SeekToPosition(this.position);
 }

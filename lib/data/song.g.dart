@@ -11,7 +11,7 @@ Song _$SongFromJson(Map<String, dynamic> json) => Song(
   title: json['title'] as String,
   artist: json['artist'] as String,
   album: json['album'] as String,
-  duration: (json['duration'] as num).toInt(),
+  duration: Duration(microseconds: (json['duration'] as num).toInt()),
   cover: _$JsonConverterFromJson<List<dynamic>, Uint8List>(
     json['cover'],
     const Uint8ListJsonConverter().fromJson,
@@ -23,7 +23,7 @@ Map<String, dynamic> _$SongToJson(Song instance) => <String, dynamic>{
   'title': instance.title,
   'artist': instance.artist,
   'album': instance.album,
-  'duration': instance.duration,
+  'duration': instance.duration.inMicroseconds,
   'cover': _$JsonConverterToJson<List<dynamic>, Uint8List>(
     instance.cover,
     const Uint8ListJsonConverter().toJson,

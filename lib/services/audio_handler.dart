@@ -45,7 +45,7 @@ class EchoSyncAudioHandler extends BaseAudioHandler
       album: song.album,
       title: song.title,
       artist: song.artist,
-      duration: Duration(seconds: song.duration),
+      duration: song.duration,
       artUri:
           song.cover != null
               ? Uri.dataFromBytes(song.cover!, mimeType: 'image/jpeg')
@@ -135,6 +135,7 @@ class EchoSyncAudioHandler extends BaseAudioHandler
         }
       }
 
+      print('Seeking to position: $position');
       await _player.seek(position);
     } catch (e) {
       print('Error in executeSyncedSeek: $e');
@@ -164,6 +165,7 @@ class EchoSyncAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> seek(Duration position) async {
+    print("-> PIXA LALALALALLAA: Seeking to position: $position");
     onLocalControl?.call('seek', {'position': position.inMilliseconds});
   }
 

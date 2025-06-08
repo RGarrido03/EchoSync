@@ -12,7 +12,7 @@ PlaybackStatus _$PlaybackStatusFromJson(Map<String, dynamic> json) =>
           json['currentSong'] == null
               ? null
               : Song.fromJson(json['currentSong'] as Map<String, dynamic>),
-      position: (json['position'] as num).toInt(),
+      position: Duration(microseconds: (json['position'] as num).toInt()),
       isPlaying: json['isPlaying'] as bool,
       currentIndex: (json['currentIndex'] as num).toInt(),
       volume: (json['volume'] as num).toDouble(),
@@ -27,7 +27,7 @@ PlaybackStatus _$PlaybackStatusFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$PlaybackStatusToJson(PlaybackStatus instance) =>
     <String, dynamic>{
       'currentSong': instance.currentSong,
-      'position': instance.position,
+      'position': instance.position.inMicroseconds,
       'isPlaying': instance.isPlaying,
       'currentIndex': instance.currentIndex,
       'volume': instance.volume,

@@ -64,14 +64,13 @@ class AudioFileService {
       final bytes = await file.readAsBytes();
       final hash = sha256.convert(bytes).toString();
       Metadata tag = await MetadataGod.readMetadata(file: filePath);
-      int duration = ((tag.durationMs ?? 0) / 1000).toInt();
 
       final song = Song(
         hash: hash,
         title: tag.title ?? _getFileNameWithoutExtension(filePath),
         artist: tag.artist ?? 'Unknown Artist',
         album: tag.album ?? 'Unknown Album',
-        duration: duration,
+        duration: Duration(milliseconds: tag.durationMs?.toInt() ?? 0),
         cover: tag.picture?.data,
       );
 

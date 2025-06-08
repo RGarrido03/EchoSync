@@ -85,9 +85,7 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
         if (_syncManager != null) {
           add(
             PlaybackStatusUpdated(
-              _syncManager!.currentPlaybackStatus!.copyWith(
-                position: position.inSeconds,
-              ),
+              _syncManager!.currentPlaybackStatus!.copyWith(position: position),
             ),
           );
         }
@@ -128,6 +126,7 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     SeekToPosition event,
     Emitter<SyncManagerState> emit,
   ) async {
+    print("_onSeek called with position: ${event.position}");
     if (_syncManager != null) {
       await _syncManager!.seek(event.position);
     }

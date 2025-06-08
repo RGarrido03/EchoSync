@@ -52,14 +52,13 @@ class SyncManager {
   void _handleLocalAudioControl(String command, Map<String, dynamic>? params) {
     switch (command) {
       case 'play':
-        play();
+        play(song: _localPlaybackStatus?.currentSong);
         break;
       case 'pause':
         pause();
         break;
       case 'seek':
-        final position = params?['position'] as int? ?? 0;
-        seek(position);
+        seek(Duration(milliseconds: params?['position']));
         break;
       case 'next':
         nextTrack();
@@ -101,7 +100,7 @@ class SyncManager {
 
     switch (control.command) {
       case 'play':
-        final position = control.params?['position'] as int?;
+        final position = control.params?['position'] as Duration?;
         final songData = control.params?['song'] as Map<String, dynamic>?;
         final song = songData != null ? Song.fromJson(songData) : null;
 
@@ -122,8 +121,7 @@ class SyncManager {
           );
           _audioHandler.executeSyncedPlay(
             song: song,
-            position:
-                position != null ? Duration(milliseconds: position) : null,
+            position: position,
             scheduledTime: DateTime.fromMillisecondsSinceEpoch(
               control.scheduledTime.millisSinceEpoch,
             ),
@@ -151,7 +149,7 @@ class SyncManager {
         break;
 
       case 'seek':
-        final position = control.params?['position'] as int? ?? 0;
+        final position = control.params?['position'] as Duration? ?? Duration();
         newStatus = PlaybackStatus(
           currentSong: newStatus.currentSong,
           position: position,
@@ -163,12 +161,7 @@ class SyncManager {
           lastUpdated: _timeSyncService.getNetworkTime(),
           deviceId: _deviceIp,
         );
-        _audioHandler.executeSyncedSeek(
-          position: Duration(milliseconds: position),
-          scheduledTime: DateTime.fromMillisecondsSinceEpoch(
-            control.scheduledTime.millisSinceEpoch,
-          ),
-        );
+        _audioHandler.executeSyncedSeek(position: position);
         break;
 
       case 'set_volume':
@@ -234,11 +227,14 @@ class SyncManager {
 
     // Get the song at the specified index and play it
     final song = _localQueueStatus!.songs[index];
-    await play(song: song, position: 0, delayMs: delayMs);
+    await play(song: song, position: Duration(), delayMs: delayMs);
   }
 
   // Updated public methods for controlling playback
-  Future<void> play({Song? song, int? position, int delayMs = 100}) async {
+  Future<void> play({Song? song, Duration? position, int delayMs = 100}) async {
+    print(
+      "PIXA SYNC MANAGER v2: Playing song: ${song?.title}, position: $position",
+    );
     final scheduledTime = NetworkTime(
       _timeSyncService.getNetworkTime().millisSinceEpoch + delayMs,
     );
@@ -264,7 +260,7 @@ class SyncManager {
     handlePlaybackControl(control);
   }
 
-  Future<void> seek(int position, {int delayMs = 100}) async {
+  Future<void> seek(Duration position, {int delayMs = 100}) async {
     final scheduledTime = NetworkTime(
       _timeSyncService.getNetworkTime().millisSinceEpoch + delayMs,
     );
@@ -273,8 +269,9 @@ class SyncManager {
       deviceId: _deviceIp,
       position: position,
     );
-    await _meshNetwork.sendPlaybackControl(control);
+    print("WHAT DA FUCK IS THIS SEEKING: $position");
     handlePlaybackControl(control);
+    await _meshNetwork.sendPlaybackControl(control);
   }
 
   Future<void> addToQueue(Song song, {int? position}) async {
@@ -437,7 +434,7 @@ class SyncManager {
   void initializeState() {
     _localPlaybackStatus = PlaybackStatus(
       currentSong: null,
-      position: 0,
+      position: Duration(),
       isPlaying: false,
       currentIndex: 0,
       volume: 1.0,

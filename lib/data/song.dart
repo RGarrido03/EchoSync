@@ -26,7 +26,7 @@ class Song {
   final String title;
   final String artist;
   final String album;
-  final int duration;
+  final Duration duration;
   @Uint8ListJsonConverter()
   final Uint8List? cover;
 

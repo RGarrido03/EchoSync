@@ -88,7 +88,7 @@ class HomeTab extends StatelessWidget {
                       Text(
                         'Current Song: ${playbackStatus.currentSong?.title ?? 'None'}',
                       ),
-                      Text('Position: ${playbackStatus.position}s'),
+                      Text('Position: ${playbackStatus.position}'),
                       Text('Playing: ${playbackStatus.isPlaying}'),
                       Text('Volume: ${(playbackStatus.volume * 100).toInt()}%'),
                       const SizedBox(height: 8),
@@ -134,15 +134,24 @@ class HomeTab extends StatelessWidget {
                         const Text('Seek: '),
                         Expanded(
                           child: Slider(
-                            value: (playbackStatus?.position ?? 0).toDouble(),
+                            value:
+                                playbackStatus?.position.inMilliseconds
+                                    .toDouble() ??
+                                0.0,
                             min: 0,
                             max:
-                                state.playbackStatus?.currentSong?.duration
+                                state
+                                    .playbackStatus
+                                    ?.currentSong
+                                    ?.duration
+                                    .inMilliseconds
                                     .toDouble() ??
                                 180, // 5 minutes
                             onChanged: (value) {
                               context.read<SyncManagerBloc>().add(
-                                SeekToPosition(value.toInt()),
+                                SeekToPosition(
+                                  Duration(milliseconds: value.toInt()),
+                                ),
                               );
                             },
                           ),

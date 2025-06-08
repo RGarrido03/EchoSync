@@ -9,7 +9,7 @@ part 'playback.g.dart';
 @JsonSerializable()
 class PlaybackStatus {
   final Song? currentSong; // Changed from String? to Song?
-  final int position;
+  final Duration position;
   final bool isPlaying;
   final int currentIndex;
   final double volume;
@@ -37,7 +37,7 @@ class PlaybackStatus {
 
   PlaybackStatus copyWith({
     Song? currentSong,
-    int? position,
+    Duration? position,
     bool? isPlaying,
     int? currentIndex,
     double? volume,
@@ -77,7 +77,7 @@ class PlaybackControl extends SyncMessage {
     required NetworkTime scheduledTime,
     required String deviceId,
     Song? song,
-    int? position,
+    Duration? position,
   }) {
     return PlaybackControl(
       command: 'play',
@@ -104,7 +104,7 @@ class PlaybackControl extends SyncMessage {
   factory PlaybackControl.seek({
     required NetworkTime scheduledTime,
     required String deviceId,
-    required int position,
+    required Duration position,
   }) {
     return PlaybackControl(
       command: 'seek',
