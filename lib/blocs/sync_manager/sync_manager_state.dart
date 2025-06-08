@@ -8,28 +8,28 @@ class SyncManagerInitializing extends SyncManagerState {}
 
 class SyncManagerReady extends SyncManagerState {
   final SyncManager syncManager;
-  final PlaybackStatus? playbackStatus;
-  final QueueStatus? queueStatus;
+  final PlaybackState? playbackState;
+  final QueueState? queueState;
   final Map<String, Device> connectedDevices;
 
   SyncManagerReady({
     required this.syncManager,
-    this.playbackStatus,
-    this.queueStatus,
+    this.playbackState,
+    this.queueState,
     required this.connectedDevices,
   });
 
   SyncManagerReady copyWith({
     SyncManager? syncManager,
-    PlaybackStatus? playbackStatus,
-    QueueStatus? queueStatus,
+    PlaybackState? playbackState,
+    QueueState? queueState,
     bool? isLeader,
     Map<String, Device>? connectedDevices,
   }) {
     return SyncManagerReady(
       syncManager: syncManager ?? this.syncManager,
-      playbackStatus: playbackStatus ?? this.playbackStatus,
-      queueStatus: queueStatus ?? this.queueStatus,
+      playbackState: playbackState ?? this.playbackState,
+      queueState: queueState ?? this.queueState,
       connectedDevices: connectedDevices ?? this.connectedDevices,
     );
   }

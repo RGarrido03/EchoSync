@@ -24,10 +24,10 @@ class PlayMusic extends SyncManagerEvent {
 
 class PauseMusic extends SyncManagerEvent {}
 
-class SeekToPosition extends SyncManagerEvent {
+class SeekMusic extends SyncManagerEvent {
   final Duration position;
 
-  SeekToPosition(this.position);
+  SeekMusic(this.position);
 }
 
 class NextTrack extends SyncManagerEvent {}
@@ -41,22 +41,28 @@ class AddSongToQueue extends SyncManagerEvent {
   AddSongToQueue(this.song, {this.position});
 }
 
-class PlaybackStatusUpdated extends SyncManagerEvent {
-  final PlaybackStatus status;
+class PlaybackStateUpdated extends SyncManagerEvent {
+  final PlaybackState state;
 
-  PlaybackStatusUpdated(this.status);
+  PlaybackStateUpdated(this.state);
 }
 
-class QueueStatusUpdated extends SyncManagerEvent {
-  final QueueStatus status;
+class QueueStateUpdated extends SyncManagerEvent {
+  final QueueState state;
 
-  QueueStatusUpdated(this.status);
+  QueueStateUpdated(this.state);
 }
 
-class PlaySongAtIndex extends SyncManagerEvent {
+class PlayAtIndex extends SyncManagerEvent {
   final int index;
 
-  PlaySongAtIndex(this.index);
+  PlayAtIndex(this.index);
+}
+
+class UpdatePlaybackPosition extends SyncManagerEvent {
+  final Duration position;
+
+  UpdatePlaybackPosition(this.position);
 }
 
 class PickAndAddSongToQueue extends SyncManagerEvent {

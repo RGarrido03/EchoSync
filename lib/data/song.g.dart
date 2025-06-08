@@ -16,10 +16,7 @@ Song _$SongFromJson(Map<String, dynamic> json) => Song(
     json['cover'],
     const Uint8ListJsonConverter().fromJson,
   ),
-  bytes: _$JsonConverterFromJson<List<dynamic>, Uint8List>(
-    json['bytes'],
-    const Uint8ListJsonConverter().fromJson,
-  ),
+  downloadUrl: json['downloadUrl'] as String?,
 );
 
 Map<String, dynamic> _$SongToJson(Song instance) => <String, dynamic>{
@@ -32,10 +29,7 @@ Map<String, dynamic> _$SongToJson(Song instance) => <String, dynamic>{
     instance.cover,
     const Uint8ListJsonConverter().toJson,
   ),
-  'bytes': _$JsonConverterToJson<List<dynamic>, Uint8List>(
-    instance.bytes,
-    const Uint8ListJsonConverter().toJson,
-  ),
+  'downloadUrl': instance.downloadUrl,
 };
 
 Value? _$JsonConverterFromJson<Json, Value>(

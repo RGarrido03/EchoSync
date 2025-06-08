@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:echosync/services/time_sync.dart';
 import 'package:flutter/foundation.dart';
@@ -10,56 +11,84 @@ import '../data/protocol/playback.dart';
 import '../data/protocol/queue.dart';
 import '../data/song.dart';
 import 'audio_handler.dart';
+import 'file_download.dart';
+import 'file_server.dart';
 import 'mesh_network.dart';
 
 class SyncManager {
   final MeshNetwork _meshNetwork;
   final TimeSyncService _timeSyncService;
-  final String _deviceIp;
+  final String _deviceId;
   final EchoSyncAudioHandler _audioHandler;
+  late final Directory tempDir;
+  late final FileServerService fileServer;
 
-  PlaybackStatus? _localPlaybackStatus;
-  QueueStatus? _localQueueStatus;
+  PlaybackState? _localPlaybackState;
+  QueueState? _localQueueState;
 
-  final StreamController<PlaybackStatus> _playbackStatusController =
+  late final StreamSubscription _playbackStateSubscription;
+  late final StreamSubscription _queueStateSubscription;
+  late final StreamSubscription _playbackCommandSubscription;
+  late final StreamSubscription _queueCommandSubscription;
+
+  final StreamController<PlaybackState> _playbackStateController =
       StreamController.broadcast();
-  final StreamController<QueueStatus> _queueStatusController =
+  final StreamController<QueueState> _queueStateController =
       StreamController.broadcast();
 
-  Stream<PlaybackStatus> get playbackStatusStream =>
-      _playbackStatusController.stream;
+  Stream<PlaybackState> get playbackStateStream =>
+      _playbackStateController.stream;
+  Stream<QueueState> get queueStateStream => _queueStateController.stream;
 
-  Stream<QueueStatus> get queueStatusStream => _queueStatusController.stream;
-
-  PlaybackStatus? get currentPlaybackStatus => _localPlaybackStatus;
-
-  QueueStatus? get currentQueueStatus => _localQueueStatus;
-
+  PlaybackState? get currentPlaybackState => _localPlaybackState;
+  QueueState? get currentQueueState => _localQueueState;
   Map<String, Device> get connectedDevices => _meshNetwork.connectedDevices;
 
   SyncManager({
     required MeshNetwork meshNetwork,
     required TimeSyncService timeSyncService,
-    required String deviceIp,
+    required String deviceId,
     required EchoSyncAudioHandler audioHandler,
+    required this.tempDir,
+    required this.fileServer,
   }) : _meshNetwork = meshNetwork,
        _timeSyncService = timeSyncService,
-       _deviceIp = deviceIp,
+       _deviceId = deviceId,
        _audioHandler = audioHandler {
     // Set up callback for local audio controls
     _audioHandler.onLocalControl = _handleLocalAudioControl;
+    _initializeStreamSubscriptions();
+  }
+
+  void _initializeStreamSubscriptions() {
+    // Subscribe to remote state updates
+    _playbackStateSubscription = _meshNetwork.streams.playbackStateStream
+        .listen(_handleRemotePlaybackState);
+    _queueStateSubscription = _meshNetwork.streams.queueStateStream.listen(
+      _handleRemoteQueueState,
+    );
+
+    // Subscribe to remote commands
+    _playbackCommandSubscription = _meshNetwork.streams.playbackCommandStream
+        .listen(_handleRemotePlaybackCommand);
+    _queueCommandSubscription = _meshNetwork.streams.queueCommandStream.listen(
+      _handleRemoteQueueCommand,
+    );
   }
 
   void _handleLocalAudioControl(String command, Map<String, dynamic>? params) {
     switch (command) {
       case 'play':
-        play(song: _localPlaybackStatus?.currentSong);
+        play(song: _localPlaybackState?.currentSong);
         break;
       case 'pause':
         pause();
         break;
       case 'seek':
-        seek(Duration(milliseconds: params?['position']));
+        final positionMs = params?['position'] as int?;
+        if (positionMs != null) {
+          seek(Duration(milliseconds: positionMs));
+        }
         break;
       case 'next':
         nextTrack();
@@ -74,281 +103,155 @@ class SyncManager {
     }
   }
 
-  void handlePlaybackControl(PlaybackControl control) {
+  void _handleRemotePlaybackCommand(PlaybackCommand command) {
     try {
       final localScheduledTime = _timeSyncService.networkToLocalTime(
-        control.scheduledTime.millisSinceEpoch,
+        command.scheduledTime.millisSinceEpoch,
       );
       final now = DateTime.now().millisecondsSinceEpoch;
       final delay = localScheduledTime - now;
 
       if (delay > 0) {
         Timer(Duration(milliseconds: delay), () {
-          _executePlaybackControl(control);
+          _executePlaybackCommand(command);
         });
       } else {
-        _executePlaybackControl(control);
+        _executePlaybackCommand(command);
       }
     } catch (e) {
-      debugPrint('Error handling playback control: $e');
+      debugPrint('Error handling remote playback command: $e');
     }
   }
 
-  void _executePlaybackControl(PlaybackControl control) {
-    if (_localPlaybackStatus == null) return;
+  void _executePlaybackCommand(PlaybackCommand command) {
+    if (_localPlaybackState == null) return;
 
-    PlaybackStatus newStatus = _localPlaybackStatus!;
+    PlaybackState newState = _localPlaybackState!;
 
-    switch (control.command) {
+    switch (command.command) {
       case 'play':
-        final position = control.params?['position'] as Duration?;
-        final songData = control.params?['song'] as Map<String, dynamic>?;
+        final positionMs = command.params?['position'] as int?;
+        final position =
+            positionMs != null ? Duration(milliseconds: positionMs) : null;
+        final songData = command.params?['song'] as Map<String, dynamic>?;
         final song = songData != null ? Song.fromJson(songData) : null;
 
-        newStatus = PlaybackStatus(
-          currentSong: song ?? newStatus.currentSong,
-          position: position ?? newStatus.position,
+        newState = _localPlaybackState!.copyWith(
+          currentSong: song ?? newState.currentSong,
+          position: position ?? newState.position,
           isPlaying: true,
-          currentIndex: newStatus.currentIndex,
-          volume: newStatus.volume,
-          shuffleMode: newStatus.shuffleMode,
-          repeatMode: newStatus.repeatMode,
           lastUpdated: _timeSyncService.getNetworkTime(),
-          deviceId: _deviceIp,
+          updatedByDevice: _deviceId,
         );
+
         if (song != null || position != null) {
           debugPrint(
-            "PIXA SYNC MANAGER: Playing song: ${song?.title}, position: $position",
+            "Executing synced play: song=${song?.title}, position=$position",
           );
           _audioHandler.executeSyncedPlay(
             song: song,
             position: position,
             scheduledTime: DateTime.fromMillisecondsSinceEpoch(
-              control.scheduledTime.millisSinceEpoch,
+              command.scheduledTime.millisSinceEpoch,
             ),
           );
         }
         break;
 
       case 'pause':
-        newStatus = PlaybackStatus(
-          currentSong: newStatus.currentSong,
-          position: newStatus.position,
+        newState = _localPlaybackState!.copyWith(
           isPlaying: false,
-          currentIndex: newStatus.currentIndex,
-          volume: newStatus.volume,
-          shuffleMode: newStatus.shuffleMode,
-          repeatMode: newStatus.repeatMode,
           lastUpdated: _timeSyncService.getNetworkTime(),
-          deviceId: _deviceIp,
+          updatedByDevice: _deviceId,
         );
+
         _audioHandler.executeSyncedPause(
           scheduledTime: DateTime.fromMillisecondsSinceEpoch(
-            control.scheduledTime.millisSinceEpoch,
+            command.scheduledTime.millisSinceEpoch,
           ),
         );
         break;
 
       case 'seek':
-        final position = control.params?['position'] as Duration? ?? Duration();
-        newStatus = PlaybackStatus(
-          currentSong: newStatus.currentSong,
+        final positionMs = command.params?['position'] as int? ?? 0;
+        final position = Duration(milliseconds: positionMs);
+
+        newState = _localPlaybackState!.copyWith(
           position: position,
-          isPlaying: newStatus.isPlaying,
-          currentIndex: newStatus.currentIndex,
-          volume: newStatus.volume,
-          shuffleMode: newStatus.shuffleMode,
-          repeatMode: newStatus.repeatMode,
           lastUpdated: _timeSyncService.getNetworkTime(),
-          deviceId: _deviceIp,
+          updatedByDevice: _deviceId,
         );
+
         _audioHandler.executeSyncedSeek(position: position);
         break;
 
       case 'set_volume':
-        final volume = control.params?['volume'] as double? ?? 1.0;
-        newStatus = PlaybackStatus(
-          currentSong: newStatus.currentSong,
-          position: newStatus.position,
-          isPlaying: newStatus.isPlaying,
-          currentIndex: newStatus.currentIndex,
+        final volume = command.params?['volume'] as double? ?? 1.0;
+        newState = _localPlaybackState!.copyWith(
           volume: volume,
-          shuffleMode: newStatus.shuffleMode,
-          repeatMode: newStatus.repeatMode,
           lastUpdated: _timeSyncService.getNetworkTime(),
-          deviceId: _deviceIp,
+          updatedByDevice: _deviceId,
         );
         break;
     }
 
-    _updateLocalPlaybackStatus(newStatus);
+    _updateLocalPlaybackState(newState);
   }
 
-  void _updateLocalPlaybackStatus(PlaybackStatus status) {
-    _localPlaybackStatus = status;
-    _meshNetwork.updatePlaybackStatus(status);
-    _playbackStatusController.add(status);
-  }
+  void _handleRemoteQueueCommand(QueueCommand command) {
+    if (_localQueueState == null) return;
 
-  void _updateLocalQueueStatus(QueueStatus status) {
-    _localQueueStatus = status;
-    _meshNetwork.updateQueueStatus(status);
-    _queueStatusController.add(status);
-  }
+    QueueState newState = _localQueueState!;
 
-  void handleRemotePlaybackStatus(PlaybackStatus status) {
-    if (_localPlaybackStatus == null ||
-        status.lastUpdated.millisSinceEpoch >
-            _localPlaybackStatus!.lastUpdated.millisSinceEpoch) {
-      _localPlaybackStatus = status;
-      _playbackStatusController.add(status);
-    }
-  }
-
-  void handleRemoteQueueStatus(QueueStatus status) {
-    if (_localQueueStatus == null ||
-        status.lastUpdated.millisSinceEpoch >
-            _localQueueStatus!.lastUpdated.millisSinceEpoch) {
-      _localQueueStatus = status;
-      _queueStatusController.add(status);
-    }
-  }
-
-  Future<void> playAtIndex(int index, {int delayMs = 100}) async {
-    if (_localQueueStatus == null ||
-        index < 0 ||
-        index >= _localQueueStatus!.songs.length) {
-      return;
-    }
-
-    // Update queue to set the new current index
-    final control = QueueControl.playAtIndex(deviceId: _deviceIp, index: index);
-    await _meshNetwork.sendQueueControl(control);
-    handleQueueControl(control);
-
-    // Get the song at the specified index and play it
-    final song = _localQueueStatus!.songs[index];
-    await play(song: song, position: Duration(), delayMs: delayMs);
-  }
-
-  // Updated public methods for controlling playback
-  Future<void> play({Song? song, Duration? position, int delayMs = 100}) async {
-    debugPrint(
-      "PIXA SYNC MANAGER v2: Playing song: ${song?.title}, position: $position",
-    );
-    final scheduledTime = NetworkTime(
-      _timeSyncService.getNetworkTime().millisSinceEpoch + delayMs,
-    );
-    final control = PlaybackControl.play(
-      scheduledTime: scheduledTime,
-      deviceId: _deviceIp,
-      song: song,
-      position: position,
-    );
-    await _meshNetwork.sendPlaybackControl(control);
-    handlePlaybackControl(control);
-  }
-
-  Future<void> pause({int delayMs = 100}) async {
-    final scheduledTime = NetworkTime(
-      _timeSyncService.getNetworkTime().millisSinceEpoch + delayMs,
-    );
-    final control = PlaybackControl.pause(
-      scheduledTime: scheduledTime,
-      deviceId: _deviceIp,
-    );
-    await _meshNetwork.sendPlaybackControl(control);
-    handlePlaybackControl(control);
-  }
-
-  Future<void> seek(Duration position, {int delayMs = 100}) async {
-    final scheduledTime = NetworkTime(
-      _timeSyncService.getNetworkTime().millisSinceEpoch + delayMs,
-    );
-    final control = PlaybackControl.seek(
-      scheduledTime: scheduledTime,
-      deviceId: _deviceIp,
-      position: position,
-    );
-    debugPrint("WHAT DA FUCK IS THIS SEEKING: $position");
-    handlePlaybackControl(control);
-    await _meshNetwork.sendPlaybackControl(control);
-  }
-
-  Future<void> addToQueue(Song song, {int? position}) async {
-    final control = QueueControl.add(
-      deviceId: _deviceIp,
-      song: song,
-      position: position,
-    );
-    await _meshNetwork.sendQueueControl(control);
-    handleQueueControl(control);
-  }
-
-  Future<void> nextTrack() async {
-    final control = QueueControl.next(deviceId: _deviceIp);
-    await _meshNetwork.sendQueueControl(control);
-    handleQueueControl(control);
-  }
-
-  Future<void> previousTrack() async {
-    final control = QueueControl.previous(deviceId: _deviceIp);
-    await _meshNetwork.sendQueueControl(control);
-    handleQueueControl(control);
-  }
-
-  void handleQueueControl(QueueControl control) {
-    if (_localQueueStatus == null) return;
-
-    QueueStatus newStatus = _localQueueStatus!;
-
-    switch (control.command) {
+    switch (command.command) {
       case 'add':
-        final songData = control.params?['song'] as Map<String, dynamic>?;
-        final position = control.params?['position'] as int?;
-        if (songData != null) {
-          final song = Song.fromJson(songData);
-          final newSongs = List<Song>.from(newStatus.songs);
-          if (position != null && position < newSongs.length) {
-            newSongs.insert(position, song);
-          } else {
-            newSongs.add(song);
-          }
+        final songData = command.params?['song'] as Map<String, dynamic>?;
+        final position = command.params?['position'] as int?;
 
-          newStatus = QueueStatus(
-            songs: newSongs,
-            currentIndex: newStatus.currentIndex,
-            shuffleMode: newStatus.shuffleMode,
-            repeatMode: newStatus.repeatMode,
-            lastUpdated: _timeSyncService.getNetworkTime(),
-            deviceId: _deviceIp,
-          );
+        if (songData == null) {
+          debugPrint('No song data provided for add command');
+          return;
         }
+
+        final song = Song.fromJson(songData);
+        _downloadSongIfNeeded(song);
+
+        final newSongs = List<Song>.from(newState.songs);
+        if (position != null && position < newSongs.length) {
+          newSongs.insert(position, song);
+        } else {
+          newSongs.add(song);
+        }
+
+        newState = newState.copyWith(
+          songs: newSongs,
+          lastUpdated: _timeSyncService.getNetworkTime(),
+          updatedByDevice: _deviceId,
+        );
         break;
 
       case 'remove':
-        final index = control.params?['index'] as int?;
-        if (index != null && index < newStatus.songs.length) {
-          final newSongs = List<Song>.from(newStatus.songs);
+        final index = command.params?['index'] as int?;
+        if (index != null && index < newState.songs.length) {
+          final newSongs = List<Song>.from(newState.songs);
           newSongs.removeAt(index);
-          int newCurrentIndex = newStatus.currentIndex;
+
+          int newCurrentIndex = newState.currentIndex;
           if (index <= newCurrentIndex && newCurrentIndex > 0) {
             newCurrentIndex--;
           }
 
-          newStatus = QueueStatus(
+          newState = newState.copyWith(
             songs: newSongs,
             currentIndex: newCurrentIndex,
-            shuffleMode: newStatus.shuffleMode,
-            repeatMode: newStatus.repeatMode,
             lastUpdated: _timeSyncService.getNetworkTime(),
-            deviceId: _deviceIp,
+            updatedByDevice: _deviceId,
           );
         }
         break;
 
       case 'replace':
-        final songsData = control.params?['songs'] as List?;
+        final songsData = command.params?['songs'] as List?;
         if (songsData != null) {
           final songs =
               songsData
@@ -357,105 +260,238 @@ class SyncManager {
                         Song.fromJson(songData as Map<String, dynamic>),
                   )
                   .toList();
-          newStatus = QueueStatus(
+
+          for (final song in songs) {
+            _downloadSongIfNeeded(song);
+          }
+
+          newState = newState.copyWith(
             songs: songs,
             currentIndex: 0,
-            shuffleMode: newStatus.shuffleMode,
-            repeatMode: newStatus.repeatMode,
             lastUpdated: _timeSyncService.getNetworkTime(),
-            deviceId: _deviceIp,
+            updatedByDevice: _deviceId,
           );
         }
         break;
 
-      case 'play_at_index': // Add this new case
-        final index = control.params?['index'] as int?;
-        if (index != null && index >= 0 && index < newStatus.songs.length) {
-          newStatus = QueueStatus(
-            songs: newStatus.songs,
+      case 'set_current_index':
+        final index = command.params?['index'] as int?;
+        if (index != null && index >= 0 && index < newState.songs.length) {
+          newState = newState.copyWith(
             currentIndex: index,
-            shuffleMode: newStatus.shuffleMode,
-            repeatMode: newStatus.repeatMode,
             lastUpdated: _timeSyncService.getNetworkTime(),
-            deviceId: _deviceIp,
+            updatedByDevice: _deviceId,
           );
         }
         break;
 
-      case 'next':
-        int newIndex = newStatus.currentIndex + 1;
-        if (newIndex >= newStatus.songs.length) {
-          if (newStatus.repeatMode == RepeatMode.all) {
-            newIndex = 0;
-          } else {
-            newIndex = newStatus.songs.length - 1;
-          }
-        }
-
-        newStatus = QueueStatus(
-          songs: newStatus.songs,
-          currentIndex: newIndex,
-          shuffleMode: newStatus.shuffleMode,
-          repeatMode: newStatus.repeatMode,
+      case 'set_shuffle':
+        final enabled = command.params?['enabled'] as bool? ?? false;
+        newState = newState.copyWith(
+          shuffleMode: enabled,
           lastUpdated: _timeSyncService.getNetworkTime(),
-          deviceId: _deviceIp,
+          updatedByDevice: _deviceId,
         );
         break;
 
-      case 'previous':
-        int newIndex = newStatus.currentIndex - 1;
-        if (newIndex < 0) {
-          if (newStatus.repeatMode == RepeatMode.all) {
-            newIndex = newStatus.songs.length - 1;
-          } else {
-            newIndex = 0;
-          }
-        }
-
-        newStatus = QueueStatus(
-          songs: newStatus.songs,
-          currentIndex: newIndex,
-          shuffleMode: newStatus.shuffleMode,
-          repeatMode: newStatus.repeatMode,
+      case 'set_repeat':
+        final modeString = command.params?['mode'] as String?;
+        final mode = RepeatMode.values.firstWhere(
+          (m) => m.name == modeString,
+          orElse: () => RepeatMode.none,
+        );
+        newState = newState.copyWith(
+          repeatMode: mode,
           lastUpdated: _timeSyncService.getNetworkTime(),
-          deviceId: _deviceIp,
+          updatedByDevice: _deviceId,
         );
         break;
     }
 
-    _updateLocalQueueStatus(newStatus);
-    if (_localQueueStatus != null) {
-      _audioHandler.updateQueueFromSync(
-        _localQueueStatus!.songs,
-        _localQueueStatus!.currentIndex,
+    _updateLocalQueueState(newState);
+  }
+
+  Future<void> _downloadSongIfNeeded(Song song) async {
+    if (song.downloadUrl != null) {
+      final localPath = '${tempDir.path}/echosync/${song.hash}';
+      final success = await FileDownloadService.downloadFile(
+        song.downloadUrl!,
+        localPath,
       );
+
+      if (success) {
+        _audioHandler.registerSongPath(song.hash, localPath);
+      }
     }
   }
 
+  void _updateLocalPlaybackState(PlaybackState state) {
+    _localPlaybackState = state;
+    _meshNetwork.publishPlaybackState(state);
+    _playbackStateController.add(state);
+  }
+
+  void _updateLocalQueueState(QueueState state) {
+    _localQueueState = state;
+    _meshNetwork.publishQueueState(state);
+    _queueStateController.add(state);
+
+    _audioHandler.updateQueueFromSync(state.songs, state.currentIndex);
+  }
+
+  void _handleRemotePlaybackState(PlaybackState state) {
+    if (_localPlaybackState == null ||
+        state.lastUpdated.millisSinceEpoch >
+            _localPlaybackState!.lastUpdated.millisSinceEpoch) {
+      _localPlaybackState = state;
+      _playbackStateController.add(state);
+    }
+  }
+
+  void _handleRemoteQueueState(QueueState state) {
+    if (_localQueueState == null ||
+        state.lastUpdated.millisSinceEpoch >
+            _localQueueState!.lastUpdated.millisSinceEpoch) {
+      _localQueueState = state;
+      _queueStateController.add(state);
+    }
+  }
+
+  // Public control methods
+  Future<void> play({Song? song, Duration? position, int delayMs = 100}) async {
+    debugPrint("Playing song: ${song?.title}, position: $position");
+    final scheduledTime = NetworkTime(
+      _timeSyncService.getNetworkTime().millisSinceEpoch + delayMs,
+    );
+
+    final command = PlaybackCommand.play(
+      scheduledTime: scheduledTime,
+      senderId: _deviceId,
+      song: song,
+      position: position,
+    );
+
+    await _meshNetwork.publishPlaybackCommand(command);
+    _handleRemotePlaybackCommand(command);
+  }
+
+  Future<void> pause({int delayMs = 100}) async {
+    final scheduledTime = NetworkTime(
+      _timeSyncService.getNetworkTime().millisSinceEpoch + delayMs,
+    );
+
+    final command = PlaybackCommand.pause(
+      scheduledTime: scheduledTime,
+      senderId: _deviceId,
+    );
+
+    await _meshNetwork.publishPlaybackCommand(command);
+    _handleRemotePlaybackCommand(command);
+  }
+
+  Future<void> seek(Duration position, {int delayMs = 100}) async {
+    final scheduledTime = NetworkTime(
+      _timeSyncService.getNetworkTime().millisSinceEpoch + delayMs,
+    );
+
+    final command = PlaybackCommand.seek(
+      scheduledTime: scheduledTime,
+      senderId: _deviceId,
+      position: position,
+    );
+
+    await _meshNetwork.publishPlaybackCommand(command);
+    _handleRemotePlaybackCommand(command);
+  }
+
+  Future<void> addToQueue(Song song, {int? position}) async {
+    final downloadUrl = fileServer.getFileUrl(song.hash);
+    final songWithUrl = song.copyWith(downloadUrl: downloadUrl);
+
+    final command = QueueCommand.add(
+      senderId: _deviceId,
+      song: songWithUrl,
+      position: position,
+    );
+
+    await _meshNetwork.publishQueueCommand(command);
+    _handleRemoteQueueCommand(command);
+  }
+
+  Future<void> playAtIndex(int index, {int delayMs = 100}) async {
+    if (_localQueueState == null ||
+        index < 0 ||
+        index >= _localQueueState!.songs.length) {
+      return;
+    }
+
+    // Update queue current index
+    final queueCommand = QueueCommand.setCurrentIndex(
+      senderId: _deviceId,
+      index: index,
+    );
+    await _meshNetwork.publishQueueCommand(queueCommand);
+    _handleRemoteQueueCommand(queueCommand);
+
+    // Play the song at the specified index
+    final song = _localQueueState!.songs[index];
+    await play(song: song, position: Duration.zero, delayMs: delayMs);
+  }
+
+  Future<void> nextTrack() async {
+    if (_localQueueState == null) return;
+
+    int newIndex = _localQueueState!.currentIndex + 1;
+    if (newIndex >= _localQueueState!.songs.length) {
+      if (_localQueueState!.repeatMode == RepeatMode.all) {
+        newIndex = 0;
+      } else {
+        return; // Don't go past the end
+      }
+    }
+
+    await playAtIndex(newIndex);
+  }
+
+  Future<void> previousTrack() async {
+    if (_localQueueState == null) return;
+
+    int newIndex = _localQueueState!.currentIndex - 1;
+    if (newIndex < 0) {
+      if (_localQueueState!.repeatMode == RepeatMode.all) {
+        newIndex = _localQueueState!.songs.length - 1;
+      } else {
+        newIndex = 0;
+      }
+    }
+
+    await playAtIndex(newIndex);
+  }
+
   void initializeState() {
-    _localPlaybackStatus = PlaybackStatus(
+    _localPlaybackState = PlaybackState(
       currentSong: null,
-      position: Duration(),
+      position: Duration.zero,
       isPlaying: false,
       currentIndex: 0,
       volume: 1.0,
       shuffleMode: false,
       repeatMode: RepeatMode.none,
       lastUpdated: _timeSyncService.getNetworkTime(),
-      deviceId: _deviceIp,
+      updatedByDevice: _deviceId,
     );
 
-    _localQueueStatus = QueueStatus(
+    _localQueueState = QueueState(
       songs: [],
       currentIndex: 0,
       shuffleMode: false,
       repeatMode: RepeatMode.none,
       lastUpdated: _timeSyncService.getNetworkTime(),
-      deviceId: _deviceIp,
+      updatedByDevice: _deviceId,
     );
 
-    _meshNetwork.updatePlaybackStatus(_localPlaybackStatus!);
-    _meshNetwork.updateQueueStatus(_localQueueStatus!);
+    _meshNetwork.publishPlaybackState(_localPlaybackState!);
+    _meshNetwork.publishQueueState(_localQueueState!);
   }
 
   void registerSongFile(String hash, String filePath) {
@@ -463,8 +499,11 @@ class SyncManager {
   }
 
   void dispose() {
-    _playbackStatusController.close();
-    _queueStatusController.close();
-    _timeSyncService.dispose();
+    _playbackStateSubscription.cancel();
+    _queueStateSubscription.cancel();
+    _playbackCommandSubscription.cancel();
+    _queueCommandSubscription.cancel();
+    _playbackStateController.close();
+    _queueStateController.close();
   }
 }

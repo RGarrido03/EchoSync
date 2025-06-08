@@ -44,12 +44,16 @@ class TimeSyncBloc extends Bloc<TimeSyncEvent, TimeSyncState> {
         add(UpdateClockOffset(offset));
       });
 
-      _timeSyncMessageSubscription = event.meshNetwork.timeSyncMessageStream
+      _timeSyncMessageSubscription = event
+          .meshNetwork
+          .streams
+          .timeSyncMessageStream
           .listen((message) {
             add(TimeSyncMessageReceived(message));
           });
 
-      _timeSyncService!.startPeriodicSync();
+      // TODO: Reenable this
+      // _timeSyncService!.startPeriodicSync();
 
       emit(
         TimeSyncReady(

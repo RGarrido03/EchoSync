@@ -6,7 +6,7 @@ part of 'queue.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-QueueStatus _$QueueStatusFromJson(Map<String, dynamic> json) => QueueStatus(
+QueueState _$QueueStateFromJson(Map<String, dynamic> json) => QueueState(
   songs:
       (json['songs'] as List<dynamic>)
           .map((e) => Song.fromJson(e as Map<String, dynamic>))
@@ -17,17 +17,17 @@ QueueStatus _$QueueStatusFromJson(Map<String, dynamic> json) => QueueStatus(
   lastUpdated: NetworkTime.fromJson(
     json['lastUpdated'] as Map<String, dynamic>,
   ),
-  deviceId: json['deviceId'] as String,
+  updatedByDevice: json['updatedByDevice'] as String,
 );
 
-Map<String, dynamic> _$QueueStatusToJson(QueueStatus instance) =>
+Map<String, dynamic> _$QueueStateToJson(QueueState instance) =>
     <String, dynamic>{
       'songs': instance.songs,
       'currentIndex': instance.currentIndex,
       'shuffleMode': instance.shuffleMode,
       'repeatMode': _$RepeatModeEnumMap[instance.repeatMode]!,
       'lastUpdated': instance.lastUpdated,
-      'deviceId': instance.deviceId,
+      'updatedByDevice': instance.updatedByDevice,
     };
 
 const _$RepeatModeEnumMap = {
@@ -36,15 +36,15 @@ const _$RepeatModeEnumMap = {
   RepeatMode.all: 'all',
 };
 
-QueueControl _$QueueControlFromJson(Map<String, dynamic> json) => QueueControl(
+QueueCommand _$QueueCommandFromJson(Map<String, dynamic> json) => QueueCommand(
   command: json['command'] as String,
-  deviceId: json['deviceId'] as String,
+  senderId: json['senderId'] as String,
   params: json['params'] as Map<String, dynamic>?,
 );
 
-Map<String, dynamic> _$QueueControlToJson(QueueControl instance) =>
+Map<String, dynamic> _$QueueCommandToJson(QueueCommand instance) =>
     <String, dynamic>{
       'command': instance.command,
-      'deviceId': instance.deviceId,
+      'senderId': instance.senderId,
       'params': instance.params,
     };

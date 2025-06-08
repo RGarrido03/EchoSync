@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:metadata_god/metadata_god.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../data/song.dart';
 import 'audio_handler.dart';
@@ -66,6 +67,15 @@ class AudioFileService {
       final hash = sha256.convert(bytes).toString();
       Metadata tag = await MetadataGod.readMetadata(file: filePath);
 
+      // Copy file to temp directory
+      final Directory tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/$hash');
+
+      if (!await tempFile.exists()) {
+        await file.copy(tempFile.path);
+        debugPrint('Copied file to temp: ${tempFile.path}');
+      }
+
       final song = Song(
         hash: hash,
         title: tag.title ?? _getFileNameWithoutExtension(filePath),
@@ -73,12 +83,11 @@ class AudioFileService {
         album: tag.album ?? 'Unknown Album',
         duration: Duration(milliseconds: tag.durationMs?.toInt() ?? 0),
         cover: tag.picture?.data,
-        bytes: bytes,
       );
 
-      // Register the song path with the audio handler
+      // Register both original and temp paths with the audio handler
       final audioHandler = GetIt.instance<EchoSyncAudioHandler>();
-      audioHandler.registerSongPath(hash, filePath);
+      audioHandler.registerSongPath(hash, tempFile.path); // Use temp path
 
       return song;
     } catch (e) {

@@ -29,7 +29,7 @@ class Song {
   final String album;
   final Duration duration;
   final Uint8List? cover;
-  final Uint8List? bytes;
+  final String? downloadUrl;
 
   Song({
     required this.hash,
@@ -38,7 +38,7 @@ class Song {
     required this.album,
     required this.duration,
     this.cover,
-    this.bytes,
+    this.downloadUrl,
   });
 
   factory Song.fromJson(Map<String, dynamic> json) => _$SongFromJson(json);
@@ -52,4 +52,24 @@ class Song {
 
   @override
   int get hashCode => hash.hashCode;
+
+  Song copyWith({
+    String? hash,
+    String? title,
+    String? artist,
+    String? album,
+    Duration? duration,
+    Uint8List? cover,
+    String? downloadUrl,
+  }) {
+    return Song(
+      hash: hash ?? this.hash,
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      album: album ?? this.album,
+      duration: duration ?? this.duration,
+      cover: cover ?? this.cover,
+      downloadUrl: downloadUrl ?? this.downloadUrl,
+    );
+  }
 }

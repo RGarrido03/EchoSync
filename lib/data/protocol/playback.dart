@@ -7,8 +7,8 @@ import 'enums.dart';
 part 'playback.g.dart';
 
 @JsonSerializable()
-class PlaybackStatus {
-  final Song? currentSong; // Changed from String? to Song?
+class PlaybackState {
+  final Song? currentSong;
   final Duration position;
   final bool isPlaying;
   final int currentIndex;
@@ -16,9 +16,9 @@ class PlaybackStatus {
   final bool shuffleMode;
   final RepeatMode repeatMode;
   final NetworkTime lastUpdated;
-  final String deviceId;
+  final String updatedByDevice;
 
-  const PlaybackStatus({
+  const PlaybackState({
     this.currentSong,
     required this.position,
     required this.isPlaying,
@@ -27,15 +27,15 @@ class PlaybackStatus {
     required this.shuffleMode,
     required this.repeatMode,
     required this.lastUpdated,
-    required this.deviceId,
+    required this.updatedByDevice,
   });
 
-  factory PlaybackStatus.fromJson(Map<String, dynamic> json) =>
-      _$PlaybackStatusFromJson(json);
+  factory PlaybackState.fromJson(Map<String, dynamic> json) =>
+      _$PlaybackStateFromJson(json);
 
-  Map<String, dynamic> toJson() => _$PlaybackStatusToJson(this);
+  Map<String, dynamic> toJson() => _$PlaybackStateToJson(this);
 
-  PlaybackStatus copyWith({
+  PlaybackState copyWith({
     Song? currentSong,
     Duration? position,
     bool? isPlaying,
@@ -44,9 +44,9 @@ class PlaybackStatus {
     bool? shuffleMode,
     RepeatMode? repeatMode,
     NetworkTime? lastUpdated,
-    String? deviceId,
+    String? updatedByDevice,
   }) {
-    return PlaybackStatus(
+    return PlaybackState(
       currentSong: currentSong ?? this.currentSong,
       position: position ?? this.position,
       isPlaying: isPlaying ?? this.isPlaying,
@@ -55,81 +55,81 @@ class PlaybackStatus {
       shuffleMode: shuffleMode ?? this.shuffleMode,
       repeatMode: repeatMode ?? this.repeatMode,
       lastUpdated: lastUpdated ?? this.lastUpdated,
-      deviceId: deviceId ?? this.deviceId,
+      updatedByDevice: updatedByDevice ?? this.updatedByDevice,
     );
   }
 }
 
 @JsonSerializable()
-class PlaybackControl extends SyncMessage {
+class PlaybackCommand extends SyncMessage {
   final NetworkTime scheduledTime;
-  final String deviceIp;
+  final String senderId;
   final Map<String, dynamic>? params;
 
-  PlaybackControl({
+  PlaybackCommand({
     required String command,
     required this.scheduledTime,
-    required this.deviceIp,
+    required this.senderId,
     this.params,
   }) : super(command, timestamp: scheduledTime.toDateTime());
 
-  factory PlaybackControl.play({
+  factory PlaybackCommand.play({
     required NetworkTime scheduledTime,
-    required String deviceId,
+    required String senderId,
     Song? song,
     Duration? position,
   }) {
-    return PlaybackControl(
+    return PlaybackCommand(
       command: 'play',
       scheduledTime: scheduledTime,
-      deviceIp: deviceId,
+      senderId: senderId,
       params: {
         if (song != null) 'song': song.toJson(),
-        if (position != null) 'position': position,
+        if (position != null) 'position': position.inMilliseconds,
       },
     );
   }
 
-  factory PlaybackControl.pause({
+  factory PlaybackCommand.pause({
     required NetworkTime scheduledTime,
-    required String deviceId,
+    required String senderId,
   }) {
-    return PlaybackControl(
+    return PlaybackCommand(
       command: 'pause',
       scheduledTime: scheduledTime,
-      deviceIp: deviceId,
+      senderId: senderId,
     );
   }
 
-  factory PlaybackControl.seek({
+  factory PlaybackCommand.seek({
     required NetworkTime scheduledTime,
-    required String deviceId,
+    required String senderId,
     required Duration position,
   }) {
-    return PlaybackControl(
+    return PlaybackCommand(
       command: 'seek',
       scheduledTime: scheduledTime,
-      deviceIp: deviceId,
-      params: {'position': position},
+      senderId: senderId,
+      params: {'position': position.inMilliseconds},
     );
   }
 
-  factory PlaybackControl.setVolume({
+  factory PlaybackCommand.setVolume({
     required NetworkTime scheduledTime,
-    required String deviceId,
+    required String senderId,
     required double volume,
   }) {
-    return PlaybackControl(
+    return PlaybackCommand(
       command: 'set_volume',
       scheduledTime: scheduledTime,
-      deviceIp: deviceId,
+      senderId: senderId,
       params: {'volume': volume},
     );
   }
 
-  factory PlaybackControl.fromJson(Map<String, dynamic> json) =>
-      _$PlaybackControlFromJson(json);
+  factory PlaybackCommand.fromJson(Map<String, dynamic> json) =>
+      _$PlaybackCommandFromJson(json);
 
   @override
-  Map<String, dynamic> toJson() => _$PlaybackControlToJson(this);
+  Map<String, dynamic> toJson() => _$PlaybackCommandToJson(this);
 }

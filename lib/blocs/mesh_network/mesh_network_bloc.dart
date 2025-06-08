@@ -1,10 +1,8 @@
 // lib/bloc/mesh_network/mesh_network_bloc.dart
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../data/device.dart';
 import '../../services/mesh_network.dart';
@@ -31,10 +29,10 @@ class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
   ) async {
     try {
       emit(MeshNetworkInitializing());
-
-      final Directory tempDir = await getTemporaryDirectory();
-      _meshNetwork = MeshNetwork(deviceInfo: event.device, tempDir: tempDir);
-      _devicesSubscription = _meshNetwork!.devicesStream.listen((devices) {
+      _meshNetwork = MeshNetwork(deviceInfo: event.device);
+      _devicesSubscription = _meshNetwork!.streams.devicesStream.listen((
+        devices,
+      ) {
         add(UpdateConnectedDevices(devices));
       });
       await _meshNetwork!.connect();

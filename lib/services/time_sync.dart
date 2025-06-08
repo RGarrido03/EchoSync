@@ -87,7 +87,7 @@ class TimeSyncService {
       responseTime: receiveTime,
       targetId: message.senderId,
     );
-    _meshNetwork.sendTimeSyncMessage(response);
+    _meshNetwork.publishTimeSyncMessage(response);
   }
 
   void _processResponseAck(TimeSyncMessage message) {
@@ -137,7 +137,7 @@ class TimeSyncService {
       responseTime: responseTime,
       ackTime: receiveTime,
     );
-    _meshNetwork.sendTimeSyncMessage(ack);
+    _meshNetwork.publishTimeSyncMessage(ack);
   }
 
   void _processBroadcast(TimeSyncMessage message) {
@@ -167,7 +167,7 @@ class TimeSyncService {
       requestId: requestId,
       requestTime: requestTime,
     );
-    _meshNetwork.sendTimeSyncMessage(request);
+    _meshNetwork.publishTimeSyncMessage(request);
   }
 
   void _broadcastTime() {
@@ -177,7 +177,7 @@ class TimeSyncService {
       senderId: _deviceIp,
       leaderTime: DateTime.now().millisecondsSinceEpoch,
     );
-    _meshNetwork.sendTimeSyncMessage(broadcast);
+    _meshNetwork.publishTimeSyncMessage(broadcast);
   }
 
   void startPeriodicSync({int intervalMs = 5000}) {

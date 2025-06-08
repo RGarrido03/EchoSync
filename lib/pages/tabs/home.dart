@@ -79,18 +79,18 @@ class HomeTab extends StatelessWidget {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final playbackStatus = state.playbackStatus;
+                final playbackState = state.playbackState;
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (playbackStatus != null) ...[
+                    if (playbackState != null) ...[
                       Text(
-                        'Current Song: ${playbackStatus.currentSong?.title ?? 'None'}',
+                        'Current Song: ${playbackState.currentSong?.title ?? 'None'}',
                       ),
-                      Text('Position: ${playbackStatus.position}'),
-                      Text('Playing: ${playbackStatus.isPlaying}'),
-                      Text('Volume: ${(playbackStatus.volume * 100).toInt()}%'),
+                      Text('Position: ${playbackState.position}'),
+                      Text('Playing: ${playbackState.isPlaying}'),
+                      Text('Volume: ${(playbackState.volume * 100).toInt()}%'),
                       const SizedBox(height: 8),
                     ],
                     Row(
@@ -106,16 +106,16 @@ class HomeTab extends StatelessWidget {
                         ),
                         ElevatedButton(
                           onPressed: () {
-                            if (playbackStatus?.isPlaying == true) {
+                            if (playbackState?.isPlaying == true) {
                               context.read<SyncManagerBloc>().add(PauseMusic());
                             } else {
                               context.read<SyncManagerBloc>().add(
-                                PlayMusic(song: playbackStatus?.currentSong),
+                                PlayMusic(song: playbackState?.currentSong),
                               );
                             }
                           },
                           child: Icon(
-                            playbackStatus?.isPlaying == true
+                            playbackState?.isPlaying == true
                                 ? Icons.pause
                                 : Icons.play_arrow,
                           ),
@@ -135,13 +135,13 @@ class HomeTab extends StatelessWidget {
                         Expanded(
                           child: Slider(
                             value:
-                                playbackStatus?.position.inMilliseconds
+                                playbackState?.position.inMilliseconds
                                     .toDouble() ??
                                 0.0,
                             min: 0,
                             max:
                                 state
-                                    .playbackStatus
+                                    .playbackState
                                     ?.currentSong
                                     ?.duration
                                     .inMilliseconds
@@ -149,7 +149,7 @@ class HomeTab extends StatelessWidget {
                                 180, // 5 minutes
                             onChanged: (value) {
                               context.read<SyncManagerBloc>().add(
-                                SeekToPosition(
+                                SeekMusic(
                                   Duration(milliseconds: value.toInt()),
                                 ),
                               );
@@ -196,32 +196,32 @@ class HomeTab extends StatelessWidget {
                   return const SizedBox.shrink();
                 }
 
-                final queueStatus = state.queueStatus;
+                final queueState = state.queueState;
 
-                if (queueStatus == null) {
+                if (queueState == null) {
                   return const Text('Queue not loaded');
                 }
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Current Index: ${queueStatus.currentIndex}'),
-                    Text('Songs: ${queueStatus.songs.length}'),
+                    Text('Current Index: ${queueState.currentIndex}'),
+                    Text('Songs: ${queueState.songs.length}'),
                     const SizedBox(height: 8),
-                    if (queueStatus.songs.isNotEmpty) ...[
+                    if (queueState.songs.isNotEmpty) ...[
                       SizedBox(
                         height: 200,
                         child: ListView.builder(
-                          itemCount: queueStatus.songs.length,
+                          itemCount: queueState.songs.length,
                           itemBuilder: (context, index) {
                             final isCurrentSong =
-                                index == queueStatus.currentIndex;
+                                index == queueState.currentIndex;
                             return ListTile(
-                              title: Text(queueStatus.songs[index].title),
-                              subtitle: Text(queueStatus.songs[index].artist),
+                              title: Text(queueState.songs[index].title),
+                              subtitle: Text(queueState.songs[index].artist),
                               onTap: () {
                                 context.read<SyncManagerBloc>().add(
-                                  PlaySongAtIndex(index),
+                                  PlayAtIndex(index),
                                 );
                               },
                               leading:

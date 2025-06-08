@@ -1,15 +1,18 @@
 // lib/bloc/sync_manager/sync_manager_bloc.dart
 import 'dart:async';
+import 'dart:io';
 
-import 'package:echosync/data/song.dart';
+import 'package:bloc/bloc.dart';
+import 'package:echosync/data/protocol/playback.dart';
+import 'package:echosync/data/protocol/queue.dart';
+import 'package:echosync/services/audio_file_service.dart';
+import 'package:echosync/services/file_server.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../data/device.dart';
-import '../../data/protocol/playback.dart';
-import '../../data/protocol/queue.dart';
-import '../../services/audio_file_service.dart';
+import '../../data/song.dart';
 import '../../services/audio_handler.dart';
 import '../../services/mesh_network.dart';
 import '../../services/sync_manager.dart';
@@ -20,27 +23,25 @@ part 'sync_manager_state.dart';
 
 class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
   SyncManager? _syncManager;
-  StreamSubscription<PlaybackStatus>? _playbackSubscription;
-  StreamSubscription<QueueStatus>? _queueSubscription;
-  StreamSubscription<PlaybackStatus>? _meshPlaybackSubscription;
-  StreamSubscription<QueueStatus>? _meshQueueSubscription;
-
-  SyncManager? get syncManager => _syncManager;
+  Directory? _tempDir;
+  StreamSubscription<PlaybackState>? _playbackSubscription;
+  StreamSubscription<QueueState>? _queueSubscription;
 
   SyncManagerBloc() : super(SyncManagerInitial()) {
     on<InitializeSyncManager>(_onInitialize);
-    on<PlayMusic>(_onPlay);
-    on<PauseMusic>(_onPause);
-    on<SeekToPosition>(_onSeek);
-    on<NextTrack>(_onNext);
-    on<PreviousTrack>(_onPrevious);
-    on<AddSongToQueue>(_onAddToQueue);
-    on<PlaySongAtIndex>(_onPlayAtIndex);
-    on<PickAndAddSongToQueue>(_onPickAndAddSong); // Add this
-    on<PickAndAddMultipleSongsToQueue>(_onPickAndAddMultipleSongs); // Add this
-    on<AddSongFromPath>(_onAddSongFromPath); // Add this
-    on<PlaybackStatusUpdated>(_onPlaybackUpdated);
-    on<QueueStatusUpdated>(_onQueueUpdated);
+    on<PlayMusic>(_onPlayMusic);
+    on<PauseMusic>(_onPauseMusic);
+    on<SeekMusic>(_onSeekMusic);
+    on<NextTrack>(_onNextTrack);
+    on<PreviousTrack>(_onPreviousTrack);
+    on<AddSongToQueue>(_onAddSongToQueue);
+    on<PlayAtIndex>(_onPlayAtIndex);
+    on<PlaybackStateUpdated>(_onPlaybackUpdated);
+    on<QueueStateUpdated>(_onQueueUpdated);
+    on<UpdatePlaybackPosition>(_onUpdatePlaybackPosition);
+    on<PickAndAddSongToQueue>(_onPickAndAddSong);
+    on<PickAndAddMultipleSongsToQueue>(_onPickAndAddMultipleSongs);
+    on<AddSongFromPath>(_onAddSongFromPath);
   }
 
   Future<void> _onInitialize(
@@ -50,56 +51,38 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     try {
       emit(SyncManagerInitializing());
 
+      _tempDir = await getTemporaryDirectory();
       final audioHandler = GetIt.instance<EchoSyncAudioHandler>();
+      final fileServer = FileServerService();
+      await fileServer.initialize();
 
       _syncManager = SyncManager(
         meshNetwork: event.meshNetwork,
         timeSyncService: event.timeSyncService,
-        deviceIp: event.deviceIp,
+        deviceId: event.deviceIp,
         audioHandler: audioHandler,
+        tempDir: _tempDir!,
+        fileServer: fileServer,
       );
 
-      _playbackSubscription = _syncManager!.playbackStatusStream.listen((
-        status,
-      ) {
-        add(PlaybackStatusUpdated(status));
+      // Subscribe to local state updates
+      _playbackSubscription = _syncManager!.playbackStateStream.listen((state) {
+        add(PlaybackStateUpdated(state));
       });
 
-      _queueSubscription = _syncManager!.queueStatusStream.listen((status) {
-        add(QueueStatusUpdated(status));
-      });
-
-      // Listen to mesh network streams for remote updates
-      _meshPlaybackSubscription = event.meshNetwork.playbackStatusStream.listen(
-        (status) {
-          _syncManager!.handleRemotePlaybackStatus(status);
-        },
-      );
-
-      _meshQueueSubscription = event.meshNetwork.queueStatusStream.listen((
-        status,
-      ) {
-        _syncManager!.handleRemoteQueueStatus(status);
-      });
-
-      audioHandler.positionStream.listen((position) {
-        if (_syncManager != null) {
-          add(
-            PlaybackStatusUpdated(
-              _syncManager!.currentPlaybackStatus!.copyWith(position: position),
-            ),
-          );
-        }
+      _queueSubscription = _syncManager!.queueStateStream.listen((state) {
+        add(QueueStateUpdated(state));
       });
 
       _syncManager!.initializeState();
 
+      // Emit initial ready state
       emit(
         SyncManagerReady(
           syncManager: _syncManager!,
-          playbackStatus: _syncManager!.currentPlaybackStatus,
-          queueStatus: _syncManager!.currentQueueStatus,
-          connectedDevices: _syncManager!.connectedDevices,
+          playbackState: _syncManager!.currentPlaybackState,
+          queueState: _syncManager!.currentQueueState,
+          connectedDevices: event.meshNetwork.connectedDevices,
         ),
       );
     } catch (e) {
@@ -107,16 +90,32 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     }
   }
 
-  Future<void> _onPlay(PlayMusic event, Emitter<SyncManagerState> emit) async {
-    debugPrint(
-      "Playing song: ${event.song?.title} at position: ${event.position}",
-    );
+  Future<void> _onUpdatePlaybackPosition(
+    UpdatePlaybackPosition event,
+    Emitter<SyncManagerState> emit,
+  ) async {
+    if (state is SyncManagerReady && _syncManager != null) {
+      final currentState = state as SyncManagerReady;
+      if (currentState.playbackState != null) {
+        final updatedState = currentState.playbackState!.copyWith(
+          position: event.position,
+        );
+
+        emit(currentState.copyWith(playbackState: updatedState));
+      }
+    }
+  }
+
+  Future<void> _onPlayMusic(
+    PlayMusic event,
+    Emitter<SyncManagerState> emit,
+  ) async {
     if (_syncManager != null) {
       await _syncManager!.play(song: event.song, position: event.position);
     }
   }
 
-  Future<void> _onPause(
+  Future<void> _onPauseMusic(
     PauseMusic event,
     Emitter<SyncManagerState> emit,
   ) async {
@@ -125,23 +124,25 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     }
   }
 
-  Future<void> _onSeek(
-    SeekToPosition event,
+  Future<void> _onSeekMusic(
+    SeekMusic event,
     Emitter<SyncManagerState> emit,
   ) async {
-    debugPrint("_onSeek called with position: ${event.position}");
     if (_syncManager != null) {
       await _syncManager!.seek(event.position);
     }
   }
 
-  Future<void> _onNext(NextTrack event, Emitter<SyncManagerState> emit) async {
+  Future<void> _onNextTrack(
+    NextTrack event,
+    Emitter<SyncManagerState> emit,
+  ) async {
     if (_syncManager != null) {
       await _syncManager!.nextTrack();
     }
   }
 
-  Future<void> _onPrevious(
+  Future<void> _onPreviousTrack(
     PreviousTrack event,
     Emitter<SyncManagerState> emit,
   ) async {
@@ -150,7 +151,7 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     }
   }
 
-  Future<void> _onAddToQueue(
+  Future<void> _onAddSongToQueue(
     AddSongToQueue event,
     Emitter<SyncManagerState> emit,
   ) async {
@@ -160,7 +161,7 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
   }
 
   Future<void> _onPlayAtIndex(
-    PlaySongAtIndex event,
+    PlayAtIndex event,
     Emitter<SyncManagerState> emit,
   ) async {
     if (_syncManager != null) {
@@ -169,34 +170,22 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
   }
 
   void _onPlaybackUpdated(
-    PlaybackStatusUpdated event,
+    PlaybackStateUpdated event,
     Emitter<SyncManagerState> emit,
   ) {
     if (state is SyncManagerReady) {
       final currentState = state as SyncManagerReady;
-      emit(
-        currentState.copyWith(
-          playbackStatus: event.status,
-          connectedDevices:
-              _syncManager?.connectedDevices ?? currentState.connectedDevices,
-        ),
-      );
+      emit(currentState.copyWith(playbackState: event.state));
     }
   }
 
   void _onQueueUpdated(
-    QueueStatusUpdated event,
+    QueueStateUpdated event,
     Emitter<SyncManagerState> emit,
   ) {
     if (state is SyncManagerReady) {
       final currentState = state as SyncManagerReady;
-      emit(
-        currentState.copyWith(
-          queueStatus: event.status,
-          connectedDevices:
-              _syncManager?.connectedDevices ?? currentState.connectedDevices,
-        ),
-      );
+      emit(currentState.copyWith(queueState: event.state));
     }
   }
 
@@ -249,8 +238,6 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
   Future<void> close() {
     _playbackSubscription?.cancel();
     _queueSubscription?.cancel();
-    _meshPlaybackSubscription?.cancel();
-    _meshQueueSubscription?.cancel();
     _syncManager?.dispose();
     return super.close();
   }

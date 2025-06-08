@@ -6,48 +6,66 @@ import 'enums.dart';
 
 part 'queue.g.dart';
 
-// Complete queue status (retained message)
+// Unified queue state (retained message)
 @JsonSerializable()
-class QueueStatus {
-  final List<Song> songs; // List of song hashes
+class QueueState {
+  final List<Song> songs;
   final int currentIndex;
   final bool shuffleMode;
   final RepeatMode repeatMode;
   final NetworkTime lastUpdated;
-  final String deviceId; // Which device last updated this
+  final String updatedByDevice;
 
-  const QueueStatus({
+  const QueueState({
     required this.songs,
     required this.currentIndex,
     required this.shuffleMode,
     required this.repeatMode,
     required this.lastUpdated,
-    required this.deviceId,
+    required this.updatedByDevice,
   });
 
-  factory QueueStatus.fromJson(Map<String, dynamic> json) =>
-      _$QueueStatusFromJson(json);
+  factory QueueState.fromJson(Map<String, dynamic> json) =>
+      _$QueueStateFromJson(json);
 
-  Map<String, dynamic> toJson() => _$QueueStatusToJson(this);
+  Map<String, dynamic> toJson() => _$QueueStateToJson(this);
+
+  QueueState copyWith({
+    List<Song>? songs,
+    int? currentIndex,
+    bool? shuffleMode,
+    RepeatMode? repeatMode,
+    NetworkTime? lastUpdated,
+    String? updatedByDevice,
+  }) {
+    return QueueState(
+      songs: songs ?? this.songs,
+      currentIndex: currentIndex ?? this.currentIndex,
+      shuffleMode: shuffleMode ?? this.shuffleMode,
+      repeatMode: repeatMode ?? this.repeatMode,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+      updatedByDevice: updatedByDevice ?? this.updatedByDevice,
+    );
+  }
 }
 
-// Control messages for queue topic
+// Simplified queue commands (non-retained messages)
 @JsonSerializable()
-class QueueControl extends SyncMessage {
-  final String deviceId;
+class QueueCommand extends SyncMessage {
+  final String senderId;
   final Map<String, dynamic>? params;
 
-  QueueControl({required String command, required this.deviceId, this.params})
+  QueueCommand({required String command, required this.senderId, this.params})
     : super(command);
 
-  factory QueueControl.add({
-    required String deviceId,
+  factory QueueCommand.add({
+    required String senderId,
     required Song song,
     int? position,
   }) {
-    return QueueControl(
+    return QueueCommand(
       command: 'add',
-      deviceId: deviceId,
+      senderId: senderId,
       params: {
         'song': song.toJson(),
         if (position != null) 'position': position,
@@ -55,59 +73,73 @@ class QueueControl extends SyncMessage {
     );
   }
 
-  factory QueueControl.remove({required String deviceId, required int index}) {
-    return QueueControl(
+  factory QueueCommand.remove({required String senderId, required int index}) {
+    return QueueCommand(
       command: 'remove',
-      deviceId: deviceId,
+      senderId: senderId,
       params: {'index': index},
     );
   }
 
-  factory QueueControl.move({
-    required String deviceId,
+  factory QueueCommand.move({
+    required String senderId,
     required int fromIndex,
     required int toIndex,
   }) {
-    return QueueControl(
+    return QueueCommand(
       command: 'move',
-      deviceId: deviceId,
+      senderId: senderId,
       params: {'fromIndex': fromIndex, 'toIndex': toIndex},
     );
   }
 
-  factory QueueControl.replace({
-    required String deviceId,
-    required List<String> songs,
+  factory QueueCommand.replace({
+    required String senderId,
+    required List<Song> songs,
   }) {
-    return QueueControl(
+    return QueueCommand(
       command: 'replace',
-      deviceId: deviceId,
-      params: {'songs': songs},
+      senderId: senderId,
+      params: {'songs': songs.map((s) => s.toJson()).toList()},
     );
   }
 
-  factory QueueControl.next({required String deviceId}) {
-    return QueueControl(command: 'next', deviceId: deviceId);
-  }
-
-  factory QueueControl.previous({required String deviceId}) {
-    return QueueControl(command: 'previous', deviceId: deviceId);
-  }
-
-  factory QueueControl.playAtIndex({
-    required String deviceId,
+  factory QueueCommand.setCurrentIndex({
+    required String senderId,
     required int index,
   }) {
-    return QueueControl(
-      command: 'play_at_index',
-      deviceId: deviceId,
+    return QueueCommand(
+      command: 'set_current_index',
+      senderId: senderId,
       params: {'index': index},
     );
   }
 
-  factory QueueControl.fromJson(Map<String, dynamic> json) =>
-      _$QueueControlFromJson(json);
+  factory QueueCommand.setShuffle({
+    required String senderId,
+    required bool enabled,
+  }) {
+    return QueueCommand(
+      command: 'set_shuffle',
+      senderId: senderId,
+      params: {'enabled': enabled},
+    );
+  }
+
+  factory QueueCommand.setRepeat({
+    required String senderId,
+    required RepeatMode mode,
+  }) {
+    return QueueCommand(
+      command: 'set_repeat',
+      senderId: senderId,
+      params: {'mode': mode.name},
+    );
+  }
+
+  factory QueueCommand.fromJson(Map<String, dynamic> json) =>
+      _$QueueCommandFromJson(json);
 
   @override
-  Map<String, dynamic> toJson() => _$QueueControlToJson(this);
+  Map<String, dynamic> toJson() => _$QueueCommandToJson(this);
 }

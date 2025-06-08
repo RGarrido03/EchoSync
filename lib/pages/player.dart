@@ -46,7 +46,7 @@ class Player extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(16.0),
                     child: Image.memory(
-                      state.playbackStatus?.currentSong?.cover ?? Uint8List(0),
+                      state.playbackState?.currentSong?.cover ?? Uint8List(0),
                       fit: BoxFit.cover,
                       width: MediaQuery.sizeOf(context).width / 2,
                       height: MediaQuery.sizeOf(context).width / 2,
@@ -74,14 +74,14 @@ class Player extends StatelessWidget {
                   ),
                   SizedBox(height: 16),
                   Text(
-                    state.playbackStatus?.currentSong?.title ?? 'Wasted Love',
+                    state.playbackState?.currentSong?.title ?? 'Wasted Love',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   Text(
-                    state.playbackStatus?.currentSong?.artist ?? 'JJ',
+                    state.playbackState?.currentSong?.artist ?? 'JJ',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -105,13 +105,13 @@ class Player extends StatelessWidget {
                           fill: 1,
                         ),
                         color: Theme.of(context).colorScheme.onPrimaryContainer,
-                        isSelected: state.playbackStatus?.isPlaying ?? false,
+                        isSelected: state.playbackState?.isPlaying ?? false,
                         onPressed: () {
                           context.read<SyncManagerBloc>().add(
-                            state.playbackStatus!.isPlaying
+                            state.playbackState!.isPlaying
                                 ? PauseMusic()
                                 : PlayMusic(
-                                  song: state.playbackStatus?.currentSong,
+                                  song: state.playbackState?.currentSong,
                                 ),
                           );
                         },
@@ -137,13 +137,13 @@ class Player extends StatelessWidget {
                   SizedBox(height: 16),
                   Slider(
                     value:
-                        state.playbackStatus?.position.inMilliseconds
+                        state.playbackState?.position.inMilliseconds
                             .toDouble() ??
                         0.0,
                     min: 0,
                     max:
                         state
-                            .playbackStatus
+                            .playbackState
                             ?.currentSong
                             ?.duration
                             .inMilliseconds
@@ -151,7 +151,7 @@ class Player extends StatelessWidget {
                         0.0,
                     onChanged: (value) {
                       context.read<SyncManagerBloc>().add(
-                        SeekToPosition(Duration(milliseconds: value.toInt())),
+                        SeekMusic(Duration(milliseconds: value.toInt())),
                       );
                     },
                   ),

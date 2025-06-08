@@ -6,8 +6,8 @@ part of 'playback.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-PlaybackStatus _$PlaybackStatusFromJson(Map<String, dynamic> json) =>
-    PlaybackStatus(
+PlaybackState _$PlaybackStateFromJson(Map<String, dynamic> json) =>
+    PlaybackState(
       currentSong:
           json['currentSong'] == null
               ? null
@@ -21,10 +21,10 @@ PlaybackStatus _$PlaybackStatusFromJson(Map<String, dynamic> json) =>
       lastUpdated: NetworkTime.fromJson(
         json['lastUpdated'] as Map<String, dynamic>,
       ),
-      deviceId: json['deviceId'] as String,
+      updatedByDevice: json['updatedByDevice'] as String,
     );
 
-Map<String, dynamic> _$PlaybackStatusToJson(PlaybackStatus instance) =>
+Map<String, dynamic> _$PlaybackStateToJson(PlaybackState instance) =>
     <String, dynamic>{
       'currentSong': instance.currentSong,
       'position': instance.position.inMicroseconds,
@@ -34,7 +34,7 @@ Map<String, dynamic> _$PlaybackStatusToJson(PlaybackStatus instance) =>
       'shuffleMode': instance.shuffleMode,
       'repeatMode': _$RepeatModeEnumMap[instance.repeatMode]!,
       'lastUpdated': instance.lastUpdated,
-      'deviceId': instance.deviceId,
+      'updatedByDevice': instance.updatedByDevice,
     };
 
 const _$RepeatModeEnumMap = {
@@ -43,20 +43,20 @@ const _$RepeatModeEnumMap = {
   RepeatMode.all: 'all',
 };
 
-PlaybackControl _$PlaybackControlFromJson(Map<String, dynamic> json) =>
-    PlaybackControl(
+PlaybackCommand _$PlaybackCommandFromJson(Map<String, dynamic> json) =>
+    PlaybackCommand(
       command: json['command'] as String,
       scheduledTime: NetworkTime.fromJson(
         json['scheduledTime'] as Map<String, dynamic>,
       ),
-      deviceIp: json['deviceIp'] as String,
+      senderId: json['senderId'] as String,
       params: json['params'] as Map<String, dynamic>?,
     );
 
-Map<String, dynamic> _$PlaybackControlToJson(PlaybackControl instance) =>
+Map<String, dynamic> _$PlaybackCommandToJson(PlaybackCommand instance) =>
     <String, dynamic>{
       'command': instance.command,
       'scheduledTime': instance.scheduledTime,
-      'deviceIp': instance.deviceIp,
+      'senderId': instance.senderId,
       'params': instance.params,
     };
