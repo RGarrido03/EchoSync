@@ -34,6 +34,30 @@ class PlaybackStatus {
       _$PlaybackStatusFromJson(json);
 
   Map<String, dynamic> toJson() => _$PlaybackStatusToJson(this);
+
+  PlaybackStatus copyWith({
+    Song? currentSong,
+    int? position,
+    bool? isPlaying,
+    int? currentIndex,
+    double? volume,
+    bool? shuffleMode,
+    RepeatMode? repeatMode,
+    NetworkTime? lastUpdated,
+    String? deviceId,
+  }) {
+    return PlaybackStatus(
+      currentSong: currentSong ?? this.currentSong,
+      position: position ?? this.position,
+      isPlaying: isPlaying ?? this.isPlaying,
+      currentIndex: currentIndex ?? this.currentIndex,
+      volume: volume ?? this.volume,
+      shuffleMode: shuffleMode ?? this.shuffleMode,
+      repeatMode: repeatMode ?? this.repeatMode,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+      deviceId: deviceId ?? this.deviceId,
+    );
+  }
 }
 
 @JsonSerializable()

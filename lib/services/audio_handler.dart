@@ -3,11 +3,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
-import 'package:crypto/crypto.dart';
 import 'package:just_audio/just_audio.dart';
 
-import '../data/protocol/playback.dart';
-import '../data/protocol/queue.dart';
 import '../data/song.dart';
 
 class EchoSyncAudioHandler extends BaseAudioHandler
@@ -21,6 +18,8 @@ class EchoSyncAudioHandler extends BaseAudioHandler
   EchoSyncAudioHandler() {
     _init();
   }
+
+  Stream<Duration> get positionStream => _player.positionStream;
 
   void _init() {
     // Listen to player state changes and broadcast them
