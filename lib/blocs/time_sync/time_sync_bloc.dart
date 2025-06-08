@@ -1,6 +1,7 @@
 // lib/bloc/time_sync/time_sync_bloc.dart
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/protocol/sync.dart';
@@ -64,7 +65,7 @@ class TimeSyncBloc extends Bloc<TimeSyncEvent, TimeSyncState> {
 
   void _onSetAsLeader(SetAsTimeSyncLeader event, Emitter<TimeSyncState> emit) {
     if (_timeSyncService != null) {
-      print("HERE LEAD THIS SHIT MF");
+      debugPrint("HERE LEAD THIS SHIT MF");
       _timeSyncService!.setAsLeader();
       emit(
         TimeSyncReady(
@@ -93,7 +94,7 @@ class TimeSyncBloc extends Bloc<TimeSyncEvent, TimeSyncState> {
   }
 
   void _onUpdateOffset(UpdateClockOffset event, Emitter<TimeSyncState> emit) {
-    print("Updated clock: ${event.offset}, $state");
+    debugPrint("Updated clock: ${event.offset}, $state");
     if (state is TimeSyncReady && _timeSyncService != null) {
       emit(
         TimeSyncReady(

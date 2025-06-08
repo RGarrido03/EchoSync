@@ -1,9 +1,10 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:mqtt_server/mqtt_server.dart';
 
 Future<void> main() async {
-  print('Starting MQTT broker with persistence...');
+  debugPrint('Starting MQTT broker with persistence...');
 
   // Create a temporary directory for session data
   final tempDir = Directory('mqtt_data');
@@ -24,11 +25,11 @@ Future<void> main() async {
   // Start the broker
   await broker.start();
 
-  print('MQTT broker with persistence running on port 1883');
-  print('Press Enter to stop the broker');
+  debugPrint('MQTT broker with persistence running on port 1883');
+  debugPrint('Press Enter to stop the broker');
   await stdin.first;
 
   // Stop the broker - this will save sessions automatically
   await broker.stop();
-  print('Persistent MQTT broker stopped');
+  debugPrint('Persistent MQTT broker stopped');
 }

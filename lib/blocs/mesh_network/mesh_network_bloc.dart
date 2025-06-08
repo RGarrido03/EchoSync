@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -82,7 +83,7 @@ class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
     UpdateConnectedDevices event,
     Emitter<MeshNetworkState> emit,
   ) {
-    print("BLOC: Updating connected devices: ${event.devices}");
+    debugPrint("BLOC: Updating connected devices: ${event.devices}");
     if (state is MeshNetworkConnected && _meshNetwork != null) {
       emit(
         MeshNetworkConnected(

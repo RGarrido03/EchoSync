@@ -2,6 +2,7 @@
 import 'dart:async';
 
 import 'package:echosync/data/song.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
@@ -107,7 +108,9 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
   }
 
   Future<void> _onPlay(PlayMusic event, Emitter<SyncManagerState> emit) async {
-    print("Playing song: ${event.song?.title} at position: ${event.position}");
+    debugPrint(
+      "Playing song: ${event.song?.title} at position: ${event.position}",
+    );
     if (_syncManager != null) {
       await _syncManager!.play(song: event.song, position: event.position);
     }
@@ -126,7 +129,7 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     SeekToPosition event,
     Emitter<SyncManagerState> emit,
   ) async {
-    print("_onSeek called with position: ${event.position}");
+    debugPrint("_onSeek called with position: ${event.position}");
     if (_syncManager != null) {
       await _syncManager!.seek(event.position);
     }
@@ -207,7 +210,7 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
         await _syncManager!.addToQueue(song, position: event.position);
       }
     } catch (e) {
-      print('Error picking and adding song: $e');
+      debugPrint('Error picking and adding song: $e');
     }
   }
 
@@ -224,7 +227,7 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
         }
       }
     } catch (e) {
-      print('Error picking and adding multiple songs: $e');
+      debugPrint('Error picking and adding multiple songs: $e');
     }
   }
 
@@ -238,7 +241,7 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
         await _syncManager!.addToQueue(song, position: event.position);
       }
     } catch (e) {
-      print('Error adding song from path: $e');
+      debugPrint('Error adding song from path: $e');
     }
   }
 

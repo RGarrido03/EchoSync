@@ -26,7 +26,9 @@ class DevicesTab extends StatelessWidget {
                       final connectedDevices = <String, Device>{};
 
                       if (state is MeshNetworkConnected) {
-                        print("Connected devices: ${state.connectedDevices}");
+                        debugPrint(
+                          "Connected devices: ${state.connectedDevices}",
+                        );
                         connectedDevices.addAll(state.connectedDevices);
                       }
 

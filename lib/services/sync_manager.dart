@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:echosync/services/time_sync.dart';
+import 'package:flutter/foundation.dart';
 
 import '../data/device.dart';
 import '../data/protocol/base.dart';
@@ -89,7 +90,7 @@ class SyncManager {
         _executePlaybackControl(control);
       }
     } catch (e) {
-      print('Error handling playback control: $e');
+      debugPrint('Error handling playback control: $e');
     }
   }
 
@@ -116,7 +117,7 @@ class SyncManager {
           deviceId: _deviceIp,
         );
         if (song != null || position != null) {
-          print(
+          debugPrint(
             "PIXA SYNC MANAGER: Playing song: ${song?.title}, position: $position",
           );
           _audioHandler.executeSyncedPlay(
@@ -232,7 +233,7 @@ class SyncManager {
 
   // Updated public methods for controlling playback
   Future<void> play({Song? song, Duration? position, int delayMs = 100}) async {
-    print(
+    debugPrint(
       "PIXA SYNC MANAGER v2: Playing song: ${song?.title}, position: $position",
     );
     final scheduledTime = NetworkTime(
@@ -269,7 +270,7 @@ class SyncManager {
       deviceId: _deviceIp,
       position: position,
     );
-    print("WHAT DA FUCK IS THIS SEEKING: $position");
+    debugPrint("WHAT DA FUCK IS THIS SEEKING: $position");
     handlePlaybackControl(control);
     await _meshNetwork.sendPlaybackControl(control);
   }

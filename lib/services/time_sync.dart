@@ -5,6 +5,7 @@ import 'dart:math';
 
 import 'package:echosync/data/protocol/base.dart';
 import 'package:echosync/data/protocol/sync.dart';
+import 'package:flutter/foundation.dart';
 
 import 'mesh_network.dart';
 
@@ -35,13 +36,13 @@ class TimeSyncService {
   void setAsLeader() {
     _isLeader = true;
     _clockOffset = 0;
-    print('Device $_deviceIp is now the time sync leader');
+    debugPrint('Device $_deviceIp is now the time sync leader');
     _clockOffsetController.add(_clockOffset);
   }
 
   void setAsFollower() {
     _isLeader = false;
-    print('Device $_deviceIp is now a time sync follower');
+    debugPrint('Device $_deviceIp is now a time sync follower');
   }
 
   int localToNetworkTime(int localTime) {
@@ -101,11 +102,11 @@ class TimeSyncService {
       _rttMeasurements[message.senderId]!.removeAt(0);
     }
 
-    print('RTT to ${message.senderId}: ${rtt}ms');
+    debugPrint('RTT to ${message.senderId}: ${rtt}ms');
   }
 
   void _processSyncResponse(TimeSyncMessage message) {
-    print(
+    debugPrint(
       "Processing sync response from ${message.senderId}: ${jsonEncode(message.toJson())}",
     );
     if (message.requestId == null ||
@@ -126,7 +127,7 @@ class TimeSyncService {
     final offset = responseTime - (requestTime + oneWayDelay);
 
     _clockOffset = (_clockOffset * 7 + offset) ~/ 8;
-    print('Clock offset updated: ${_clockOffset}ms');
+    debugPrint('Clock offset updated: ${_clockOffset}ms');
 
     _clockOffsetController.add(_clockOffset);
 
@@ -140,7 +141,7 @@ class TimeSyncService {
   }
 
   void _processBroadcast(TimeSyncMessage message) {
-    print(
+    debugPrint(
       "Processing sync response from ${message.senderId}: ${jsonEncode(message.toJson())}",
     );
     if (message.leaderTime == null) return;

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -56,7 +57,7 @@ class EchoSyncAudioHandler extends BaseAudioHandler
 
   // Load song file and prepare for playback
   Future<void> _loadSong(Song song) async {
-    print("HERE MFSSS");
+    debugPrint("HERE MFSSS");
     final Directory tempDir = await getTemporaryDirectory();
     final songPath = _songPaths[song.hash] ?? '${tempDir.path}/${song.hash}';
 
@@ -100,7 +101,7 @@ class EchoSyncAudioHandler extends BaseAudioHandler
 
       await _player.play();
     } catch (e) {
-      print('Error in executeSyncedPlay: $e');
+      debugPrint('Error in executeSyncedPlay: $e');
     }
   }
 
@@ -117,7 +118,7 @@ class EchoSyncAudioHandler extends BaseAudioHandler
 
       await _player.pause();
     } catch (e) {
-      print('Error in executeSyncedPause: $e');
+      debugPrint('Error in executeSyncedPause: $e');
     }
   }
 
@@ -135,10 +136,10 @@ class EchoSyncAudioHandler extends BaseAudioHandler
         }
       }
 
-      print('Seeking to position: $position');
+      debugPrint('Seeking to position: $position');
       await _player.seek(position);
     } catch (e) {
-      print('Error in executeSyncedSeek: $e');
+      debugPrint('Error in executeSyncedSeek: $e');
     }
   }
 
@@ -165,7 +166,7 @@ class EchoSyncAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> seek(Duration position) async {
-    print("-> PIXA LALALALALLAA: Seeking to position: $position");
+    debugPrint("-> PIXA LALALALALLAA: Seeking to position: $position");
     onLocalControl?.call('seek', {'position': position.inMilliseconds});
   }
 

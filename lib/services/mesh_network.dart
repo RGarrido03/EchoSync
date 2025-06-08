@@ -7,6 +7,7 @@ import 'package:echosync/data/protocol/base.dart';
 import 'package:echosync/data/protocol/playback.dart';
 import 'package:echosync/data/protocol/queue.dart';
 import 'package:echosync/data/song.dart';
+import 'package:flutter/foundation.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 
@@ -75,8 +76,9 @@ class MeshNetwork {
     _client.autoReconnect = true;
     _client.onConnected = _onConnected;
     _client.onDisconnected = _onDisconnected;
-    _client.onSubscribed = (topic) => print("Subscribed to $topic");
-    _client.onSubscribeFail = (topic) => print("Failed to subscribe to $topic");
+    _client.onSubscribed = (topic) => debugPrint("Subscribed to $topic");
+    _client.onSubscribeFail =
+        (topic) => debugPrint("Failed to subscribe to $topic");
   }
 
   Future<void> connect() async {
@@ -103,7 +105,7 @@ class MeshNetwork {
 
   void _onConnected() async {
     _isConnected = true;
-    print('Connected to MQTT broker');
+    debugPrint('Connected to MQTT broker');
     await _subscribeToTopics();
     await _announceDeviceJoin();
   }
@@ -128,7 +130,7 @@ class MeshNetwork {
   }
 
   void _onDisconnected() {
-    print('Disconnected from MQTT broker');
+    debugPrint('Disconnected from MQTT broker');
     _isConnected = false;
     _connectedDevices.clear();
     // Emit to stream instead of directly notifying BLoC
@@ -150,12 +152,13 @@ class MeshNetwork {
         final Map<String, dynamic> data = jsonDecode(payload);
         _handleMessage(topic, data);
       } catch (e) {
-        print('Error parsing message from $topic: $e');
+        debugPrint('Error parsing message from $topic: $e');
       }
     }
   }
 
   void _handleMessage(String topic, Map<String, dynamic> data) {
+    debugPrint("Received message on topic: $topic at ${DateTime.now()}");
     switch (topic) {
       case playbackStatusTopic:
         final status = PlaybackStatus.fromJson(data);
@@ -196,11 +199,11 @@ class MeshNetwork {
 
       case deviceControlTopic:
         final control = DeviceControl.fromJson(data);
-        print(
+        debugPrint(
           "Received device control: ${control.device.ip}, host is ${_device.ip}",
         );
         if (control.device.ip != _device.ip) {
-          print("Adding IP ${control.device.ip}");
+          debugPrint("Adding IP ${control.device.ip}");
           _handleDeviceControl(control);
         }
         break;
@@ -215,7 +218,7 @@ class MeshNetwork {
   }
 
   void _handleDeviceControl(DeviceControl control) {
-    print(
+    debugPrint(
       "Handling device control: ${control.action} for ${control.device.ip}",
     );
     switch (control.action) {
@@ -246,7 +249,7 @@ class MeshNetwork {
   void _handlePlaybackControl(PlaybackControl control) {
     // This will be handled by SyncManager when it receives the message
     // For now, we could store it and let SyncManager retrieve it
-    print('Received playback control: ${control.command}');
+    debugPrint('Received playback control: ${control.command}');
   }
 
   // Forward queue control to SyncManager
@@ -261,7 +264,7 @@ class MeshNetwork {
     if (song.bytes != null) {
       final file = File('${tempDir.path}/${song.hash}');
       file.writeAsBytesSync(song.bytes!);
-      print('Saved song ${song.title} to ${file.path}');
+      debugPrint('Saved song ${song.title} to ${file.path}');
     }
   }
 
@@ -282,7 +285,7 @@ class MeshNetwork {
         retain: retain,
       );
     } catch (e) {
-      print('Error publishing message to $topic: $e');
+      debugPrint('Error publishing message to $topic: $e');
     }
   }
 

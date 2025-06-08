@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:metadata_god/metadata_god.dart';
 
@@ -32,7 +33,7 @@ class AudioFileService {
         return songs.isNotEmpty ? songs : null;
       }
     } catch (e) {
-      print('Error picking audio files: $e');
+      debugPrint('Error picking audio files: $e');
     }
     return null;
   }
@@ -48,7 +49,7 @@ class AudioFileService {
         return await _createSongFromFile(result.files.single.path!);
       }
     } catch (e) {
-      print('Error picking audio file: $e');
+      debugPrint('Error picking audio file: $e');
     }
     return null;
   }
@@ -57,7 +58,7 @@ class AudioFileService {
     try {
       final file = File(filePath);
       if (!await file.exists()) {
-        print('File does not exist: $filePath');
+        debugPrint('File does not exist: $filePath');
         return null;
       }
 
@@ -81,7 +82,7 @@ class AudioFileService {
 
       return song;
     } catch (e) {
-      print('Error creating song from file: $e');
+      debugPrint('Error creating song from file: $e');
       return null;
     }
   }
