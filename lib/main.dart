@@ -1,12 +1,15 @@
 // lib/main.dart
+import 'package:audio_service/audio_service.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:echosync/pages/player.dart';
 import 'package:echosync/pages/tabs/devices.dart';
 import 'package:echosync/pages/tabs/home.dart';
 import 'package:echosync/pages/tabs/library.dart';
+import 'package:echosync/services/audio_handler.dart';
 import 'package:echosync/services/device_info.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:metadata_god/metadata_god.dart';
 
@@ -19,6 +22,18 @@ import 'navigation/nav_item.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await MetadataGod.initialize();
+
+  final audioHandler = await AudioService.init(
+    builder: () => EchoSyncAudioHandler(),
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'com.yourcompany.echosync.channel.audio',
+      androidNotificationChannelName: 'EchoSync Audio',
+      androidNotificationOngoing: true,
+      androidShowNotificationBadge: true,
+    ),
+  );
+  GetIt.instance.registerSingleton<EchoSyncAudioHandler>(audioHandler);
+
   runApp(const EchoSyncApp());
 }
 

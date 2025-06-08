@@ -3,11 +3,13 @@ import 'dart:async';
 
 import 'package:echosync/data/song.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 
 import '../../data/device.dart';
 import '../../data/protocol/playback.dart';
 import '../../data/protocol/queue.dart';
 import '../../services/audio_file_service.dart';
+import '../../services/audio_handler.dart';
 import '../../services/mesh_network.dart';
 import '../../services/sync_manager.dart';
 import '../../services/time_sync.dart';
@@ -47,10 +49,13 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     try {
       emit(SyncManagerInitializing());
 
+      final audioHandler = GetIt.instance<EchoSyncAudioHandler>();
+
       _syncManager = SyncManager(
         meshNetwork: event.meshNetwork,
         timeSyncService: event.timeSyncService,
         deviceIp: event.deviceIp,
+        audioHandler: audioHandler,
       );
 
       _playbackSubscription = _syncManager!.playbackStatusStream.listen((

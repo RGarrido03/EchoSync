@@ -8,12 +8,14 @@ import '../data/protocol/enums.dart';
 import '../data/protocol/playback.dart';
 import '../data/protocol/queue.dart';
 import '../data/song.dart';
+import 'audio_handler.dart';
 import 'mesh_network.dart';
 
 class SyncManager {
   final MeshNetwork _meshNetwork;
   final TimeSyncService _timeSyncService;
   final String _deviceIp;
+  final EchoSyncAudioHandler _audioHandler;
 
   PlaybackStatus? _localPlaybackStatus;
   QueueStatus? _localQueueStatus;
@@ -38,9 +40,39 @@ class SyncManager {
     required MeshNetwork meshNetwork,
     required TimeSyncService timeSyncService,
     required String deviceIp,
+    required EchoSyncAudioHandler audioHandler,
   }) : _meshNetwork = meshNetwork,
        _timeSyncService = timeSyncService,
-       _deviceIp = deviceIp;
+       _deviceIp = deviceIp,
+       _audioHandler = audioHandler {
+    // Set up callback for local audio controls
+    _audioHandler.onLocalControl = _handleLocalAudioControl;
+  }
+
+  void _handleLocalAudioControl(String command, Map<String, dynamic>? params) {
+    switch (command) {
+      case 'play':
+        play();
+        break;
+      case 'pause':
+        pause();
+        break;
+      case 'seek':
+        final position = params?['position'] as int? ?? 0;
+        seek(position);
+        break;
+      case 'next':
+        nextTrack();
+        break;
+      case 'previous':
+        previousTrack();
+        break;
+      case 'play_at_index':
+        final index = params?['index'] as int? ?? 0;
+        playAtIndex(index);
+        break;
+    }
+  }
 
   void handlePlaybackControl(PlaybackControl control) {
     try {
@@ -84,6 +116,16 @@ class SyncManager {
           lastUpdated: _timeSyncService.getNetworkTime(),
           deviceId: _deviceIp,
         );
+        if (song != null || position != null) {
+          _audioHandler.executeSyncedPlay(
+            song: song,
+            position:
+                position != null ? Duration(milliseconds: position) : null,
+            scheduledTime: DateTime.fromMillisecondsSinceEpoch(
+              control.scheduledTime.millisSinceEpoch,
+            ),
+          );
+        }
         break;
 
       case 'pause':
@@ -97,6 +139,11 @@ class SyncManager {
           repeatMode: newStatus.repeatMode,
           lastUpdated: _timeSyncService.getNetworkTime(),
           deviceId: _deviceIp,
+        );
+        _audioHandler.executeSyncedPause(
+          scheduledTime: DateTime.fromMillisecondsSinceEpoch(
+            control.scheduledTime.millisSinceEpoch,
+          ),
         );
         break;
 
@@ -112,6 +159,12 @@ class SyncManager {
           repeatMode: newStatus.repeatMode,
           lastUpdated: _timeSyncService.getNetworkTime(),
           deviceId: _deviceIp,
+        );
+        _audioHandler.executeSyncedSeek(
+          position: Duration(milliseconds: position),
+          scheduledTime: DateTime.fromMillisecondsSinceEpoch(
+            control.scheduledTime.millisSinceEpoch,
+          ),
         );
         break;
 
@@ -370,6 +423,12 @@ class SyncManager {
     }
 
     _updateLocalQueueStatus(newStatus);
+    if (_localQueueStatus != null) {
+      _audioHandler.updateQueueFromSync(
+        _localQueueStatus!.songs,
+        _localQueueStatus!.currentIndex,
+      );
+    }
   }
 
   void initializeState() {
@@ -396,6 +455,10 @@ class SyncManager {
 
     _meshNetwork.updatePlaybackStatus(_localPlaybackStatus!);
     _meshNetwork.updateQueueStatus(_localQueueStatus!);
+  }
+
+  void registerSongFile(String hash, String filePath) {
+    _audioHandler.registerSongPath(hash, filePath);
   }
 
   void dispose() {

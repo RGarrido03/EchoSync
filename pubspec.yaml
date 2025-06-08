@@ -55,6 +55,8 @@ dependencies:
   bloc: ^9.0.0
   file_picker: ^10.1.9
   metadata_god: ^1.0.0
+  audio_service: ^0.18.18
+  get_it: ^8.0.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

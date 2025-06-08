@@ -3,9 +3,11 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:get_it/get_it.dart';
 import 'package:metadata_god/metadata_god.dart';
 
 import '../data/song.dart';
+import 'audio_handler.dart';
 
 class AudioFileService {
   static Future<List<Song>?> pickAudioFiles() async {
@@ -64,7 +66,7 @@ class AudioFileService {
       Metadata tag = await MetadataGod.readMetadata(file: filePath);
       int duration = ((tag.durationMs ?? 0) / 1000).toInt();
 
-      return Song(
+      final song = Song(
         hash: hash,
         title: tag.title ?? _getFileNameWithoutExtension(filePath),
         artist: tag.artist ?? 'Unknown Artist',
@@ -72,6 +74,12 @@ class AudioFileService {
         duration: duration,
         cover: tag.picture?.data,
       );
+
+      // Register the song path with the audio handler
+      final audioHandler = GetIt.instance<EchoSyncAudioHandler>();
+      audioHandler.registerSongPath(hash, filePath);
+
+      return song;
     } catch (e) {
       print('Error creating song from file: $e');
       return null;
