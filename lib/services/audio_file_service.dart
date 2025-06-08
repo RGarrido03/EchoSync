@@ -72,6 +72,7 @@ class AudioFileService {
         album: tag.album ?? 'Unknown Album',
         duration: Duration(milliseconds: tag.durationMs?.toInt() ?? 0),
         cover: tag.picture?.data,
+        bytes: bytes,
       );
 
       // Register the song path with the audio handler

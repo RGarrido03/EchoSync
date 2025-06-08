@@ -21,14 +21,15 @@ class Uint8ListJsonConverter extends JsonConverter<Uint8List, List<dynamic>> {
 }
 
 @JsonSerializable()
+@Uint8ListJsonConverter()
 class Song {
   final String hash;
   final String title;
   final String artist;
   final String album;
   final Duration duration;
-  @Uint8ListJsonConverter()
   final Uint8List? cover;
+  final Uint8List? bytes;
 
   Song({
     required this.hash,
@@ -37,6 +38,7 @@ class Song {
     required this.album,
     required this.duration,
     this.cover,
+    this.bytes,
   });
 
   factory Song.fromJson(Map<String, dynamic> json) => _$SongFromJson(json);

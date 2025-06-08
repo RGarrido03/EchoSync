@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../data/song.dart';
 
@@ -55,10 +56,9 @@ class EchoSyncAudioHandler extends BaseAudioHandler
 
   // Load song file and prepare for playback
   Future<void> _loadSong(Song song) async {
-    final songPath = _songPaths[song.hash];
-    if (songPath == null) {
-      throw Exception('Song file not found for hash: ${song.hash}');
-    }
+    print("HERE MFSSS");
+    final Directory tempDir = await getTemporaryDirectory();
+    final songPath = _songPaths[song.hash] ?? '${tempDir.path}/${song.hash}';
 
     final file = File(songPath);
     if (!await file.exists()) {

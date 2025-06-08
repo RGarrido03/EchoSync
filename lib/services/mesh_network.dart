@@ -1,10 +1,12 @@
 // lib/services/mesh_network.dart
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:echosync/data/protocol/base.dart';
 import 'package:echosync/data/protocol/playback.dart';
 import 'package:echosync/data/protocol/queue.dart';
+import 'package:echosync/data/song.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 
@@ -14,6 +16,7 @@ import '../data/protocol/sync.dart';
 
 class MeshNetwork {
   late final Device _device;
+  late final Directory tempDir;
   final Map<String, Device> _connectedDevices = {};
   late MqttServerClient _client;
   bool _isConnected = false;
@@ -40,7 +43,7 @@ class MeshNetwork {
   Map<String, Device> get connectedDevices =>
       Map.unmodifiable(_connectedDevices);
 
-  MeshNetwork({required Device deviceInfo}) {
+  MeshNetwork({required Device deviceInfo, required this.tempDir}) {
     _device = deviceInfo;
     _setupMqttClient();
   }
@@ -164,7 +167,6 @@ class MeshNetwork {
       case queueStatusTopic:
         final status = QueueStatus.fromJson(data);
         _currentQueueStatus = status;
-        // Emit to stream instead of directly notifying BLoC
         _queueStatusController.add(status);
         break;
 
@@ -249,7 +251,18 @@ class MeshNetwork {
 
   // Forward queue control to SyncManager
   void _handleQueueControl(QueueControl control) {
-    print('Received queue control: ${control.command}');
+    if (control.deviceId == _device.ip) {
+      return;
+    }
+    final song = control.params?['song'] as Song?;
+    if (song == null) {
+      return;
+    }
+    if (song.bytes != null) {
+      final file = File('${tempDir.path}/${song.hash}');
+      file.writeAsBytesSync(song.bytes!);
+      print('Saved song ${song.title} to ${file.path}');
+    }
   }
 
   Future<void> _publishMessage(
