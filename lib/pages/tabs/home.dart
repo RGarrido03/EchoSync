@@ -109,7 +109,9 @@ class HomeTab extends StatelessWidget {
                             if (playbackStatus?.isPlaying == true) {
                               context.read<SyncManagerBloc>().add(PauseMusic());
                             } else {
-                              context.read<SyncManagerBloc>().add(PlayMusic());
+                              context.read<SyncManagerBloc>().add(
+                                PlayMusic(song: playbackStatus?.currentSong),
+                              );
                             }
                           },
                           child: Icon(

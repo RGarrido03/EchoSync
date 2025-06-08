@@ -97,6 +97,7 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
   }
 
   Future<void> _onPlay(PlayMusic event, Emitter<SyncManagerState> emit) async {
+    print("Playing song: ${event.song?.title} at position: ${event.position}");
     if (_syncManager != null) {
       await _syncManager!.play(song: event.song, position: event.position);
     }

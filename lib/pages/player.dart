@@ -110,7 +110,9 @@ class Player extends StatelessWidget {
                           context.read<SyncManagerBloc>().add(
                             state.playbackStatus!.isPlaying
                                 ? PauseMusic()
-                                : PlayMusic(),
+                                : PlayMusic(
+                                  song: state.playbackStatus?.currentSong,
+                                ),
                           );
                         },
                         style: ButtonStyle(

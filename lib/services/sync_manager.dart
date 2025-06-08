@@ -117,6 +117,9 @@ class SyncManager {
           deviceId: _deviceIp,
         );
         if (song != null || position != null) {
+          print(
+            "PIXA SYNC MANAGER: Playing song: ${song?.title}, position: $position",
+          );
           _audioHandler.executeSyncedPlay(
             song: song,
             position:
