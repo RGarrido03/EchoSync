@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:echosync/components/image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -43,45 +42,24 @@ class Player extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(16.0),
-                    child: Image.memory(
-                      state.playbackState?.currentSong?.cover ?? Uint8List(0),
-                      fit: BoxFit.cover,
-                      width: MediaQuery.sizeOf(context).width / 2,
-                      height: MediaQuery.sizeOf(context).width / 2,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color:
-                              Theme.of(
-                                context,
-                              ).colorScheme.surfaceContainerHigh,
-                          height: MediaQuery.sizeOf(context).width / 2,
-                          width: MediaQuery.sizeOf(context).width / 2,
-                          child: Center(
-                            child: Icon(
-                              Symbols.music_note_rounded,
-                              size: 48,
-                              color:
-                                  Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                  BytesImage(
+                    bytes: state.playbackState?.currentSong?.cover,
+                    size: MediaQuery.sizeOf(context).width / 2,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.surfaceContainerHigh,
                   ),
                   SizedBox(height: 16),
                   Text(
-                    state.playbackState?.currentSong?.title ?? 'Wasted Love',
+                    state.playbackState?.currentSong?.title ??
+                        'No song playing',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   Text(
-                    state.playbackState?.currentSong?.artist ?? 'JJ',
+                    state.playbackState?.currentSong?.artist ??
+                        'Add a song to get started',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
