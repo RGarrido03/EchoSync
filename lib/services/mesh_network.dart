@@ -12,7 +12,6 @@ import 'package:mqtt_client/mqtt_server_client.dart';
 import '../data/device.dart';
 import '../data/protocol/device.dart';
 import '../data/protocol/sync.dart';
-import '../data/song.dart';
 import 'file_server.dart';
 
 // Stream containers for different message types
@@ -31,12 +30,17 @@ class MeshNetworkStreams {
       StreamController.broadcast();
 
   Stream<Map<String, Device>> get devicesStream => _devicesController.stream;
+
   Stream<PlaybackState> get playbackStateStream =>
       _playbackStateController.stream;
+
   Stream<QueueState> get queueStateStream => _queueStateController.stream;
+
   Stream<PlaybackCommand> get playbackCommandStream =>
       _playbackCommandController.stream;
+
   Stream<QueueCommand> get queueCommandStream => _queueCommandController.stream;
+
   Stream<TimeSyncMessage> get timeSyncMessageStream =>
       _timeSyncController.stream;
 
@@ -68,10 +72,14 @@ class MeshNetwork {
   static const String deviceControlTopic = '$_baseTopic/devices/control';
   static const String timeSyncTopic = '$_baseTopic/time/sync';
 
-  // Getters for streams
+  // Getters
+  Device get device => _device;
+
   MeshNetworkStreams get streams => _streams;
+
   Map<String, Device> get connectedDevices =>
       Map.unmodifiable(_connectedDevices);
+
   bool get isConnected => _isConnected;
 
   MeshNetwork({required Device deviceInfo}) {

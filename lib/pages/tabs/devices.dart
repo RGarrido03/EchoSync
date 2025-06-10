@@ -1,6 +1,7 @@
 // lib/pages/tabs/devices.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 import '../../blocs/mesh_network/mesh_network_bloc.dart';
 import '../../data/device.dart';
@@ -13,7 +14,7 @@ class DevicesTab extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Card(
             child: Padding(
@@ -74,6 +75,28 @@ class DevicesTab extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+
+          const SizedBox(height: 16),
+
+          FilledButton.tonalIcon(
+            onPressed: () {},
+            icon: const Icon(Symbols.add_rounded),
+            label: const Text('Add Device'),
+          ),
+
+          Text(
+            "You're known as: ${context.read<MeshNetworkBloc>().meshNetwork?.device.name ?? 'Unknown'}",
+            style: Theme.of(context).textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+          Text(
+            context.read<MeshNetworkBloc>().meshNetwork?.device.ip ??
+                'Unknown IP',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

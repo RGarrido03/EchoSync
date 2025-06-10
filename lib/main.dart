@@ -1,6 +1,7 @@
 // lib/main.dart
 import 'package:audio_service/audio_service.dart';
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:echosync/components/now_playing_bar.dart';
 import 'package:echosync/pages/player.dart';
 import 'package:echosync/pages/tabs/devices.dart';
 import 'package:echosync/pages/tabs/home.dart';
@@ -54,9 +55,7 @@ class EchoSyncApp extends StatelessWidget {
             title: 'EchoSync',
             theme: ThemeData(
               iconTheme: const IconThemeData(weight: 600),
-              colorScheme:
-                  lightDynamic ??
-                  ColorScheme.fromSeed(seedColor: Colors.orange),
+              colorScheme: ColorScheme.fromSeed(seedColor: Colors.orange),
               bottomSheetTheme: BottomSheetThemeData(showDragHandle: true),
               progressIndicatorTheme: ProgressIndicatorThemeData(
                 year2023: false, // ignore: deprecated_member_use
@@ -67,12 +66,10 @@ class EchoSyncApp extends StatelessWidget {
             ),
             darkTheme: ThemeData(
               iconTheme: const IconThemeData(weight: 600),
-              colorScheme:
-                  darkDynamic ??
-                  ColorScheme.fromSeed(
-                    seedColor: Colors.orange,
-                    brightness: Brightness.dark,
-                  ),
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: Colors.orange,
+                brightness: Brightness.dark,
+              ),
               bottomSheetTheme: BottomSheetThemeData(showDragHandle: true),
               progressIndicatorTheme: ProgressIndicatorThemeData(
                 year2023: false, // ignore: deprecated_member_use
@@ -179,23 +176,30 @@ class _EchoSyncHomePageState extends State<EchoSyncHomePage> {
           ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        onDestinationSelected: (int index) {
-          setState(() {
-            currentPageIndex = index;
-          });
-        },
-        selectedIndex: currentPageIndex,
-        destinations:
-            navItems
-                .map(
-                  (item) => NavigationDestination(
-                    selectedIcon: Icon(item.icon, fill: 1),
-                    icon: Icon(item.icon),
-                    label: item.label,
-                  ),
-                )
-                .toList(),
+      bottomNavigationBar: SingleChildScrollView(
+        child: Column(
+          children: [
+            NowPlayingBar(onTap: show),
+            NavigationBar(
+              onDestinationSelected: (int index) {
+                setState(() {
+                  currentPageIndex = index;
+                });
+              },
+              selectedIndex: currentPageIndex,
+              destinations:
+                  navItems
+                      .map(
+                        (item) => NavigationDestination(
+                          selectedIcon: Icon(item.icon, fill: 1),
+                          icon: Icon(item.icon),
+                          label: item.label,
+                        ),
+                      )
+                      .toList(),
+            ),
+          ],
+        ),
       ),
       body: MultiBlocListener(
         listeners: [
@@ -243,11 +247,6 @@ class _EchoSyncHomePageState extends State<EchoSyncHomePage> {
             return const Center(child: CircularProgressIndicator());
           },
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: show,
-        tooltip: 'Player',
-        child: const Icon(Symbols.play_arrow_rounded),
       ),
     );
   }
