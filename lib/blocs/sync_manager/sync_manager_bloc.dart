@@ -67,11 +67,22 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
 
       // Subscribe to local state updates
       _playbackSubscription = _syncManager!.playbackStateStream.listen((state) {
+        debugPrint('Playback state updated: $state');
         add(PlaybackStateUpdated(state));
       });
 
       _queueSubscription = _syncManager!.queueStateStream.listen((state) {
         add(QueueStateUpdated(state));
+      });
+
+      audioHandler.positionStream.listen((position) {
+        if (_syncManager != null) {
+          add(
+            PlaybackStateUpdated(
+              _syncManager!.currentPlaybackState!.copyWith(position: position),
+            ),
+          );
+        }
       });
 
       _syncManager!.initializeState();
