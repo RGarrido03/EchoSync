@@ -139,43 +139,6 @@ class _EchoSyncHomePageState extends State<EchoSyncHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("EchoSync"),
-        actions: [
-          BlocBuilder<SyncManagerBloc, SyncManagerState>(
-            builder: (context, state) {
-              if (state is SyncManagerReady) {
-                return PopupMenuButton<String>(
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'leader':
-                        context.read<TimeSyncBloc>().add(SetAsTimeSyncLeader());
-                        break;
-                      case 'follower':
-                        context.read<TimeSyncBloc>().add(
-                          SetAsTimeSyncFollower(),
-                        );
-                        break;
-                    }
-                  },
-                  itemBuilder:
-                      (context) => [
-                        const PopupMenuItem(
-                          value: 'leader',
-                          child: Text('Become Leader'),
-                        ),
-                        const PopupMenuItem(
-                          value: 'follower',
-                          child: Text('Become Follower'),
-                        ),
-                      ],
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-        ],
-      ),
       bottomNavigationBar: SingleChildScrollView(
         child: Column(
           children: [

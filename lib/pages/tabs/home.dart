@@ -10,90 +10,91 @@ class HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: ListView(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      appBar: AppBar(title: const Text("Queue")),
+      body: BlocBuilder<SyncManagerBloc, SyncManagerState>(
+        builder: (context, state) {
+          if (state is! SyncManagerReady) {
+            return const SizedBox.shrink();
+          }
+
+          final queueState = state.queueState;
+
+          if (queueState == null) {
+            return const Text('Queue not loaded');
+          }
+
+          return queueState.songs.isNotEmpty
+              ? ListView.builder(
+                itemCount: queueState.songs.length,
+                itemBuilder: (context, index) {
+                  final isCurrentSong = index == queueState.currentIndex;
+                  return ListTile(
+                    title: Text(
+                      queueState.songs[index].title,
+                      style:
+                          isCurrentSong
+                              ? Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600)
+                              : null,
+                    ),
+                    subtitle: Text(queueState.songs[index].artist),
+                    onTap: () {
+                      context.read<SyncManagerBloc>().add(PlayAtIndex(index));
+                    },
+                    leading: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainer,
+                        shape: BoxShape.circle,
+                      ),
+                      child: SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: Center(
+                          child:
+                              isCurrentSong
+                                  ? Icon(
+                                    Symbols.play_arrow_rounded,
+                                    fill: 1,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  )
+                                  : Text(
+                                    (index + 1).toString(),
+                                    style:
+                                        Theme.of(context).textTheme.bodyLarge,
+                                  ),
+                        ),
+                      ),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Symbols.delete_rounded),
+                      onPressed: () {
+                        // TODO: Add remove from queue event
+                      },
+                    ),
+                  );
+                },
+              )
+              : Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    Icon(Symbols.queue_music_rounded, size: 64),
+                    const SizedBox(height: 16),
                     Text(
-                      'Queue',
+                      'No songs in queue',
                       style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Add songs to your queue to get started.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                BlocBuilder<SyncManagerBloc, SyncManagerState>(
-                  builder: (context, state) {
-                    if (state is! SyncManagerReady) {
-                      return const SizedBox.shrink();
-                    }
-
-                    final queueState = state.queueState;
-
-                    if (queueState == null) {
-                      return const Text('Queue not loaded');
-                    }
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Current Index: ${queueState.currentIndex}'),
-                        Text('Songs: ${queueState.songs.length}'),
-                        const SizedBox(height: 8),
-                        if (queueState.songs.isNotEmpty) ...[
-                          SizedBox(
-                            height: 200,
-                            child: ListView.builder(
-                              itemCount: queueState.songs.length,
-                              itemBuilder: (context, index) {
-                                final isCurrentSong =
-                                    index == queueState.currentIndex;
-                                return ListTile(
-                                  title: Text(queueState.songs[index].title),
-                                  subtitle: Text(
-                                    queueState.songs[index].artist,
-                                  ),
-                                  onTap: () {
-                                    context.read<SyncManagerBloc>().add(
-                                      PlayAtIndex(index),
-                                    );
-                                  },
-                                  leading:
-                                      isCurrentSong
-                                          ? Icon(
-                                            Icons.play_arrow,
-                                            color:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.primary,
-                                          )
-                                          : Text('${index + 1}'),
-                                  trailing: IconButton(
-                                    icon: const Icon(Icons.delete),
-                                    onPressed: () {
-                                      // TODO: Add remove from queue event
-                                    },
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ] else ...[
-                          const Text('No songs in queue'),
-                        ],
-                      ],
-                    );
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
+              );
+        },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {

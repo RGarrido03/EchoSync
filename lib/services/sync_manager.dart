@@ -38,10 +38,13 @@ class SyncManager {
 
   Stream<PlaybackState> get playbackStateStream =>
       _playbackStateController.stream;
+
   Stream<QueueState> get queueStateStream => _queueStateController.stream;
 
   PlaybackState? get currentPlaybackState => _localPlaybackState;
+
   QueueState? get currentQueueState => _localQueueState;
+
   Map<String, Device> get connectedDevices => _meshNetwork.connectedDevices;
 
   SyncManager({
@@ -483,7 +486,7 @@ class SyncManager {
 
     _localQueueState = QueueState(
       songs: [],
-      currentIndex: 0,
+      currentIndex: -1,
       shuffleMode: false,
       repeatMode: RepeatMode.none,
       lastUpdated: _timeSyncService.getNetworkTime(),

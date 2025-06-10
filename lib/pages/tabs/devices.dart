@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import '../../blocs/mesh_network/mesh_network_bloc.dart';
+import '../../blocs/sync_manager/sync_manager_bloc.dart';
 import '../../blocs/time_sync/time_sync_bloc.dart';
 import '../../data/device.dart';
 
@@ -13,6 +14,43 @@ class DevicesTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text("Devices"),
+        actions: [
+          BlocBuilder<SyncManagerBloc, SyncManagerState>(
+            builder: (context, state) {
+              if (state is SyncManagerReady) {
+                return PopupMenuButton<String>(
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'leader':
+                        context.read<TimeSyncBloc>().add(SetAsTimeSyncLeader());
+                        break;
+                      case 'follower':
+                        context.read<TimeSyncBloc>().add(
+                          SetAsTimeSyncFollower(),
+                        );
+                        break;
+                    }
+                  },
+                  itemBuilder:
+                      (context) => [
+                        const PopupMenuItem(
+                          value: 'leader',
+                          child: Text('Become Leader'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'follower',
+                          child: Text('Become Follower'),
+                        ),
+                      ],
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        ],
+      ),
       body: BlocBuilder<MeshNetworkBloc, MeshNetworkState>(
         builder: (context, state) {
           final connectedDevices = <String, Device>{};
