@@ -111,17 +111,21 @@ class DevicesTab extends StatelessWidget {
                 Card.filled(
                   color: Theme.of(context).colorScheme.surfaceContainer,
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.fromLTRB(0, 16.0, 0.0, 8.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Connected devices',
-                          style: Theme.of(context).textTheme.titleLarge,
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'Connected devices',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         connectedDevices.isNotEmpty
                             ? ListView.builder(
+                              shrinkWrap: true,
                               itemCount: connectedDevices.length,
                               itemBuilder: (context, index) {
                                 final device = connectedDevices.values
