@@ -51,7 +51,8 @@ class FileServerService {
 
   Future<void> _handleRequest(HttpRequest request) async {
     try {
-      if (request.method == 'GET' && request.uri.path.startsWith('/file/')) {
+      if (request.method == 'GET' &&
+          request.uri.path.startsWith('/echosync/')) {
         await _handleFileRequest(request);
       } else if (request.method == 'GET' && request.uri.path == '/health') {
         // Health check endpoint
@@ -105,24 +106,19 @@ class FileServerService {
   }
 
   String? getFileUrl(String fileHash) {
-    if (_deviceIp == null || !_isRunning) return null;
-    return 'http://$_deviceIp:$port/file/$fileHash';
+    if (_deviceIp == null) return null;
+    return 'http://$_deviceIp:$port/echosync/$fileHash';
   }
 
-  Future<String?> addFileToServer(File sourceFile, String hash) async {
-    try {
-      final targetFile = File('${_tempDir.path}/$hash');
+  Future<File> addFileToServer(File sourceFile, String hash) async {
+    final targetFile = File('${_tempDir.path}/$hash');
 
-      if (!await targetFile.exists()) {
-        await sourceFile.copy(targetFile.path);
-        debugPrint('Copied file to server: ${targetFile.path}');
-      }
-
-      return getFileUrl(hash);
-    } catch (e) {
-      debugPrint('Error adding file to server: $e');
-      return null;
+    if (!await targetFile.exists()) {
+      await sourceFile.copy(targetFile.path);
+      debugPrint('Copied file to server: ${targetFile.path}');
     }
+
+    return targetFile;
   }
 
   void stopServer() {

@@ -205,9 +205,7 @@ class MeshNetwork {
 
       case playbackCommandTopic:
         final command = PlaybackCommand.fromJson(data);
-        if (command.senderId != _device.ip) {
-          _streams._playbackCommandController.add(command);
-        }
+        _streams._playbackCommandController.add(command);
         break;
 
       case queueCommandTopic:

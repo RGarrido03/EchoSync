@@ -1,18 +1,17 @@
-// lib/services/audio_file_service.dart
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
-import 'package:get_it/get_it.dart';
 import 'package:metadata_god/metadata_god.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../data/song.dart';
-import 'audio_handler.dart';
+import 'file_server.dart';
 
 class AudioFileService {
-  static Future<List<Song>?> pickAudioFiles() async {
+  static Future<List<Song>?> pickAudioFiles(
+    FileServerService fileServer,
+  ) async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.audio,
@@ -24,7 +23,7 @@ class AudioFileService {
 
         for (PlatformFile file in result.files) {
           if (file.path != null) {
-            Song? song = await _createSongFromFile(file.path!);
+            Song? song = await createSongFromFile(file.path!, fileServer);
             if (song != null) {
               songs.add(song);
             }
@@ -39,7 +38,7 @@ class AudioFileService {
     return null;
   }
 
-  static Future<Song?> pickSingleAudioFile() async {
+  static Future<Song?> pickSingleAudioFile(FileServerService fileServer) async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.audio,
@@ -47,7 +46,7 @@ class AudioFileService {
       );
 
       if (result != null && result.files.single.path != null) {
-        return await _createSongFromFile(result.files.single.path!);
+        return await createSongFromFile(result.files.single.path!, fileServer);
       }
     } catch (e) {
       debugPrint('Error picking audio file: $e');
@@ -55,7 +54,10 @@ class AudioFileService {
     return null;
   }
 
-  static Future<Song?> _createSongFromFile(String filePath) async {
+  static Future<Song?> createSongFromFile(
+    String filePath,
+    FileServerService fileServer,
+  ) async {
     try {
       final file = File(filePath);
       if (!await file.exists()) {
@@ -67,29 +69,17 @@ class AudioFileService {
       final hash = sha256.convert(bytes).toString();
       Metadata tag = await MetadataGod.readMetadata(file: filePath);
 
-      // Copy file to temp directory
-      final Directory tempDir = await getTemporaryDirectory();
-      final tempFile = File('${tempDir.path}/$hash');
+      await fileServer.addFileToServer(file, hash);
 
-      if (!await tempFile.exists()) {
-        await file.copy(tempFile.path);
-        debugPrint('Copied file to temp: ${tempFile.path}');
-      }
-
-      final song = Song(
+      return Song(
         hash: hash,
         title: tag.title ?? _getFileNameWithoutExtension(filePath),
         artist: tag.artist ?? 'Unknown Artist',
         album: tag.album ?? 'Unknown Album',
         duration: Duration(milliseconds: tag.durationMs?.toInt() ?? 0),
         cover: tag.picture?.data,
+        downloadUrl: fileServer.getFileUrl(hash),
       );
-
-      // Register both original and temp paths with the audio handler
-      final audioHandler = GetIt.instance<EchoSyncAudioHandler>();
-      audioHandler.registerSongPath(hash, tempFile.path); // Use temp path
-
-      return song;
     } catch (e) {
       debugPrint('Error creating song from file: $e');
       return null;
@@ -100,9 +90,5 @@ class AudioFileService {
     final fileName = filePath.split('/').last;
     final lastDotIndex = fileName.lastIndexOf('.');
     return lastDotIndex != -1 ? fileName.substring(0, lastDotIndex) : fileName;
-  }
-
-  static Future<Song?> createSongFromPath(String filePath) async {
-    return await _createSongFromFile(filePath);
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:echosync/services/time_sync.dart';
@@ -107,6 +108,9 @@ class SyncManager {
   }
 
   void _handleRemotePlaybackCommand(PlaybackCommand command) {
+    debugPrint(
+      'Received remote playback command: ${command.command} from ${command.senderId}',
+    );
     try {
       final localScheduledTime = _timeSyncService.networkToLocalTime(
         command.scheduledTime.millisSinceEpoch,
@@ -114,91 +118,85 @@ class SyncManager {
       final now = DateTime.now().millisecondsSinceEpoch;
       final delay = localScheduledTime - now;
 
-      if (delay > 0) {
-        Timer(Duration(milliseconds: delay), () {
-          _executePlaybackCommand(command);
-        });
-      } else {
-        _executePlaybackCommand(command);
-      }
+      Timer(Duration(milliseconds: delay > 0 ? delay : 0), () {
+        {
+          if (_localPlaybackState == null) return;
+
+          PlaybackState newState = _localPlaybackState!;
+
+          switch (command.command) {
+            case 'play':
+              debugPrint('AFTER: ${jsonEncode(command.toJson())}');
+              final positionMs = command.params?['position'] as int?;
+              final position =
+                  positionMs != null
+                      ? Duration(milliseconds: positionMs)
+                      : null;
+              final songData = command.params?['song'] as Map<String, dynamic>?;
+              final song = songData != null ? Song.fromJson(songData) : null;
+
+              newState = _localPlaybackState!.copyWith(
+                currentSong: song ?? newState.currentSong,
+                position: position ?? newState.position,
+                isPlaying: true,
+                lastUpdated: _timeSyncService.getNetworkTime(),
+                updatedByDevice: _deviceId,
+              );
+
+              if (song != null) {
+                _audioHandler.executeSyncedPlay(
+                  song: song,
+                  position: position,
+                  scheduledTime: DateTime.fromMillisecondsSinceEpoch(
+                    command.scheduledTime.millisSinceEpoch,
+                  ),
+                );
+              }
+              break;
+
+            case 'pause':
+              newState = _localPlaybackState!.copyWith(
+                isPlaying: false,
+                lastUpdated: _timeSyncService.getNetworkTime(),
+                updatedByDevice: _deviceId,
+              );
+
+              _audioHandler.executeSyncedPause(
+                scheduledTime: DateTime.fromMillisecondsSinceEpoch(
+                  command.scheduledTime.millisSinceEpoch,
+                ),
+              );
+              break;
+
+            case 'seek':
+              final positionMs = command.params?['position'] as int? ?? 0;
+              final position = Duration(milliseconds: positionMs);
+
+              newState = _localPlaybackState!.copyWith(
+                position: position,
+                lastUpdated: _timeSyncService.getNetworkTime(),
+                updatedByDevice: _deviceId,
+              );
+
+              _audioHandler.executeSyncedSeek(position: position);
+              break;
+
+            case 'set_volume':
+              final volume = command.params?['volume'] as double? ?? 1.0;
+              newState = _localPlaybackState!.copyWith(
+                volume: volume,
+                lastUpdated: _timeSyncService.getNetworkTime(),
+                updatedByDevice: _deviceId,
+              );
+              break;
+          }
+
+          _updateLocalPlaybackState(newState);
+        }
+      });
     } catch (e) {
       debugPrint('Error handling remote playback command: $e');
     }
-  }
-
-  void _executePlaybackCommand(PlaybackCommand command) {
-    if (_localPlaybackState == null) return;
-
-    PlaybackState newState = _localPlaybackState!;
-
-    switch (command.command) {
-      case 'play':
-        final positionMs = command.params?['position'] as int?;
-        final position =
-            positionMs != null ? Duration(milliseconds: positionMs) : null;
-        final songData = command.params?['song'] as Map<String, dynamic>?;
-        final song = songData != null ? Song.fromJson(songData) : null;
-
-        newState = _localPlaybackState!.copyWith(
-          currentSong: song ?? newState.currentSong,
-          position: position ?? newState.position,
-          isPlaying: true,
-          lastUpdated: _timeSyncService.getNetworkTime(),
-          updatedByDevice: _deviceId,
-        );
-
-        if (song != null || position != null) {
-          debugPrint(
-            "Executing synced play: song=${song?.title}, position=$position",
-          );
-          _audioHandler.executeSyncedPlay(
-            song: song,
-            position: position,
-            scheduledTime: DateTime.fromMillisecondsSinceEpoch(
-              command.scheduledTime.millisSinceEpoch,
-            ),
-          );
-        }
-        break;
-
-      case 'pause':
-        newState = _localPlaybackState!.copyWith(
-          isPlaying: false,
-          lastUpdated: _timeSyncService.getNetworkTime(),
-          updatedByDevice: _deviceId,
-        );
-
-        _audioHandler.executeSyncedPause(
-          scheduledTime: DateTime.fromMillisecondsSinceEpoch(
-            command.scheduledTime.millisSinceEpoch,
-          ),
-        );
-        break;
-
-      case 'seek':
-        final positionMs = command.params?['position'] as int? ?? 0;
-        final position = Duration(milliseconds: positionMs);
-
-        newState = _localPlaybackState!.copyWith(
-          position: position,
-          lastUpdated: _timeSyncService.getNetworkTime(),
-          updatedByDevice: _deviceId,
-        );
-
-        _audioHandler.executeSyncedSeek(position: position);
-        break;
-
-      case 'set_volume':
-        final volume = command.params?['volume'] as double? ?? 1.0;
-        newState = _localPlaybackState!.copyWith(
-          volume: volume,
-          lastUpdated: _timeSyncService.getNetworkTime(),
-          updatedByDevice: _deviceId,
-        );
-        break;
-    }
-
-    _updateLocalPlaybackState(newState);
   }
 
   void _handleRemoteQueueCommand(QueueCommand command) {
@@ -316,14 +314,14 @@ class SyncManager {
 
   Future<void> _downloadSongIfNeeded(Song song) async {
     if (song.downloadUrl != null) {
-      final localPath = '${tempDir.path}/echosync/${song.hash}';
+      final localPath = '${tempDir.path}/${song.hash}';
       final success = await FileDownloadService.downloadFile(
         song.downloadUrl!,
         localPath,
       );
 
-      if (success) {
-        _audioHandler.registerSongPath(song.hash, localPath);
+      if (!success) {
+        throw Exception('Failed to download song: ${song.title}');
       }
     }
   }
@@ -335,6 +333,7 @@ class SyncManager {
   }
 
   void _updateLocalQueueState(QueueState state) {
+    debugPrint("updateLocalQueueState");
     _localQueueState = state;
     _meshNetwork.publishQueueState(state);
     _queueStateController.add(state);
@@ -375,7 +374,6 @@ class SyncManager {
     );
 
     await _meshNetwork.publishPlaybackCommand(command);
-    _handleRemotePlaybackCommand(command);
   }
 
   Future<void> pause({int delayMs = 100}) async {
@@ -389,7 +387,6 @@ class SyncManager {
     );
 
     await _meshNetwork.publishPlaybackCommand(command);
-    _handleRemotePlaybackCommand(command);
   }
 
   Future<void> seek(Duration position, {int delayMs = 100}) async {
@@ -404,7 +401,6 @@ class SyncManager {
     );
 
     await _meshNetwork.publishPlaybackCommand(command);
-    _handleRemotePlaybackCommand(command);
   }
 
   Future<void> addToQueue(Song song, {int? position}) async {
@@ -472,6 +468,7 @@ class SyncManager {
   }
 
   void initializeState() {
+    debugPrint("initializeState");
     _localPlaybackState = PlaybackState(
       currentSong: null,
       position: Duration.zero,
@@ -495,10 +492,6 @@ class SyncManager {
 
     _meshNetwork.publishPlaybackState(_localPlaybackState!);
     _meshNetwork.publishQueueState(_localQueueState!);
-  }
-
-  void registerSongFile(String hash, String filePath) {
-    _audioHandler.registerSongPath(hash, filePath);
   }
 
   void dispose() {
