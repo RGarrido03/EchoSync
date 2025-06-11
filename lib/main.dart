@@ -53,6 +53,7 @@ class EchoSyncApp extends StatelessWidget {
         builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
           return MaterialApp(
             title: 'EchoSync',
+            debugShowCheckedModeBanner: false,
             theme: ThemeData(
               iconTheme: const IconThemeData(weight: 600),
               colorScheme: ColorScheme.fromSeed(seedColor: Colors.orange),
