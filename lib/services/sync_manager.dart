@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:echosync/services/time_sync.dart';
@@ -126,7 +125,6 @@ class SyncManager {
 
           switch (command.command) {
             case 'play':
-              debugPrint('AFTER: ${jsonEncode(command.toJson())}');
               final positionMs = command.params?['position'] as int?;
               final position =
                   positionMs != null

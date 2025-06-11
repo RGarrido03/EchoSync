@@ -145,7 +145,6 @@ class EchoSyncAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> seek(Duration position) async {
-    debugPrint("-> PIXA LALALALALLAA: Seeking to position: $position");
     onLocalControl?.call('seek', {'position': position.inMilliseconds});
   }
 
