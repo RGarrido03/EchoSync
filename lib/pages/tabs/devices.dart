@@ -111,7 +111,12 @@ class DevicesTab extends StatelessWidget {
                 Card.filled(
                   color: Theme.of(context).colorScheme.surfaceContainer,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 16.0, 0.0, 8.0),
+                    padding: EdgeInsets.fromLTRB(
+                      0,
+                      16.0,
+                      0.0,
+                      connectedDevices.isNotEmpty ? 8.0 : 16.0,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -139,7 +144,10 @@ class DevicesTab extends StatelessWidget {
                                 );
                               },
                             )
-                            : const Text('No current devices connected'),
+                            : const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                              child: Text('No current devices connected'),
+                            ),
                       ],
                     ),
                   ),
