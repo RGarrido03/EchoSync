@@ -314,7 +314,7 @@ class SyncManager {
 
   Future<void> _downloadSongIfNeeded(Song song) async {
     if (song.downloadUrl != null) {
-      final localPath = '${tempDir.path}/${song.hash}';
+      final localPath = '${tempDir.path}/${song.hash}.${song.extension}';
       final success = await FileDownloadService.downloadFile(
         song.downloadUrl!,
         localPath,
@@ -404,7 +404,7 @@ class SyncManager {
   }
 
   Future<void> addToQueue(Song song, {int? position}) async {
-    final downloadUrl = fileServer.getFileUrl(song.hash);
+    final downloadUrl = fileServer.getFileUrl('${song.hash}.${song.extension}');
     final songWithUrl = song.copyWith(downloadUrl: downloadUrl);
 
     final command = QueueCommand.add(

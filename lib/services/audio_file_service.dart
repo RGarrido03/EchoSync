@@ -65,11 +65,12 @@ class AudioFileService {
         return null;
       }
 
+      final extension = filePath.split('.').last.toLowerCase();
       final bytes = await file.readAsBytes();
       final hash = sha256.convert(bytes).toString();
       Metadata tag = await MetadataGod.readMetadata(file: filePath);
 
-      await fileServer.addFileToServer(file, hash);
+      await fileServer.addFileToServer(file, '$hash.$extension');
 
       return Song(
         hash: hash,
@@ -78,7 +79,8 @@ class AudioFileService {
         album: tag.album ?? 'Unknown Album',
         duration: Duration(milliseconds: tag.durationMs?.toInt() ?? 0),
         cover: tag.picture?.data,
-        downloadUrl: fileServer.getFileUrl(hash),
+        downloadUrl: fileServer.getFileUrl("$hash.$extension"),
+        extension: extension,
       );
     } catch (e) {
       debugPrint('Error creating song from file: $e');

@@ -28,6 +28,7 @@ class Song {
   final String artist;
   final String album;
   final Duration duration;
+  final String extension;
   final Uint8List? cover;
   final String? downloadUrl;
 
@@ -37,6 +38,7 @@ class Song {
     required this.artist,
     required this.album,
     required this.duration,
+    this.extension = 'mp3',
     this.cover,
     this.downloadUrl,
   });

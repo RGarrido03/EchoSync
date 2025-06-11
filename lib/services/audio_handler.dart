@@ -57,19 +57,15 @@ class EchoSyncAudioHandler extends BaseAudioHandler
     DateTime? scheduledTime,
   }) async {
     if (song != null) {
-      debugPrint("HERE MFSSS");
       final Directory tempDir = await getTemporaryDirectory();
-      debugPrint("A minha pixa é grandeeeeee");
-      final file = File('${tempDir.path}/${song.hash}');
+      final file = File('${tempDir.path}/${song.hash}.${song.extension}');
 
       if (!await file.exists()) {
         throw Exception('Audio file does not exist: ${file.path}');
       }
 
       await _player.setAudioSource(AudioSource.file(file.path));
-      debugPrint("A minha pixa é ainda maiorrrr");
       mediaItem.add(_songToMediaItem(song));
-      debugPrint("A minha pixa é enormeeeee");
     }
 
     if (position != null) {
