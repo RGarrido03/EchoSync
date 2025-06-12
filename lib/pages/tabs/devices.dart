@@ -7,6 +7,7 @@ import '../../blocs/mesh_network/mesh_network_bloc.dart';
 import '../../blocs/sync_manager/sync_manager_bloc.dart';
 import '../../blocs/time_sync/time_sync_bloc.dart';
 import '../../data/device.dart';
+import '../add_device_screen.dart';
 
 class DevicesTab extends StatelessWidget {
   const DevicesTab({super.key});
@@ -174,7 +175,13 @@ class DevicesTab extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const AddDeviceScreen(),
+            ),
+          );
+        },
         tooltip: 'Add device',
         child: const Icon(Symbols.mobile_loupe_rounded),
       ),
