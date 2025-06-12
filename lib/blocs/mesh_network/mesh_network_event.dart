@@ -18,3 +18,30 @@ class UpdateConnectedDevices extends MeshNetworkEvent {
 
   UpdateConnectedDevices(this.devices);
 }
+
+class StartDeviceDiscovery extends MeshNetworkEvent {
+  final bool isLeader;
+
+  StartDeviceDiscovery({required this.isLeader});
+}
+
+class StopDeviceDiscovery extends MeshNetworkEvent {}
+
+class DiscoveredDeviceFound extends MeshNetworkEvent {
+  final String deviceId;
+  final String deviceName;
+
+  DiscoveredDeviceFound(this.deviceId, this.deviceName);
+}
+
+class ConnectToDiscoveredDevice extends MeshNetworkEvent {
+  final String deviceId;
+
+  ConnectToDiscoveredDevice(this.deviceId);
+}
+
+class ShareNetworkInfo extends MeshNetworkEvent {
+  final String targetDeviceId;
+
+  ShareNetworkInfo(this.targetDeviceId);
+}

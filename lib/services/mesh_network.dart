@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 
+import 'package:mqtt_server/mqtt_server.dart';
 import '../data/device.dart';
 import '../data/protocol/device.dart';
 import '../data/protocol/sync.dart';
@@ -59,16 +60,18 @@ class MeshNetwork {
   late final FileServerService _fileServer;
   final Map<String, Device> _connectedDevices = {};
   late MqttServerClient _client;
+  late String? brokerIp__;
+  late MqttBroker _mqttBroker;
   bool _isConnected = false;
   final MeshNetworkStreams _streams = MeshNetworkStreams();
 
   // Topics
-  static const String _baseTopic = 'echosync';
+  static const String _baseTopic = "echosync";
   static const String playbackStateTopic = '$_baseTopic/playback/state';
   static const String queueStateTopic = '$_baseTopic/queue/state';
   static const String deviceRegistryTopic = '$_baseTopic/devices/registry';
   static const String playbackCommandTopic = '$_baseTopic/playback/command';
-  static const String queueCommandTopic = '$_baseTopic/queue/command';
+  static const String queueCommandTopic = "$_baseTopic/queue/command";
   static const String deviceControlTopic = '$_baseTopic/devices/control';
   static const String timeSyncTopic = '$_baseTopic/time/sync';
 
@@ -82,15 +85,32 @@ class MeshNetwork {
 
   bool get isConnected => _isConnected;
 
-  MeshNetwork({required Device deviceInfo}) {
+  MeshNetwork({required Device deviceInfo, String? brokerIp}) {
     _device = deviceInfo;
     _fileServer = FileServerService();
+    brokerIp__ = brokerIp;
+    if (brokerIp == null) {
+      brokerIp__ = deviceInfo.ip;
+      _setupMqttBroker();
+    }
     _setupMqttClient();
   }
 
+  void _setupMqttBroker() {
+    // Initialize the MQTT server with the device's IP
+    final brokerConfig = MqttBrokerConfig(
+      port: 1883,
+      sessionExpiryInterval: Duration(hours: 1),
+    );
+    _mqttBroker = MqttBroker(brokerConfig);
+
+    debugPrint("I am at setupMqttBroker");
+  }
+
   void _setupMqttClient() {
-    _client = MqttServerClient('192.168.1.2', _device.ip);
+    _client = MqttServerClient(brokerIp__ ?? _device.ip, _device.ip);
     _client.port = 1883;
+
     _client.keepAlivePeriod = 20;
     _client.autoReconnect = true;
     _client.onConnected = _onConnected;
@@ -98,29 +118,45 @@ class MeshNetwork {
     _client.onSubscribed = (topic) => debugPrint("Subscribed to $topic");
     _client.onSubscribeFail =
         (topic) => debugPrint("Failed to subscribe to $topic");
+    debugPrint("I am at setupMqttClient");
+    _client.setProtocolV311();
   }
 
   Future<void> connect() async {
+    debugPrint("I am at connect");
+    if (brokerIp__ == _device.ip) {
+      await _mqttBroker.start();
+    }
+
+    debugPrint("I am at connect2");
+
     if (_isConnected) return;
+    debugPrint("I am at connect3");
 
     await _fileServer.initialize();
     final serverStarted = await _fileServer.startServer();
+    debugPrint("I am at connect4");
 
     if (!serverStarted) {
       debugPrint('Warning: File server failed to start');
     }
+    // For now useless...
+    // final willMessage = DeviceControl.leave(_device);
+    // _client.connectionMessage =
+    //     MqttConnectMessage()
+    //         .withClientIdentifier(_device.ip)
+    //         .withProtocolVersion(MqttClientConstants.mqttV311ProtocolVersion)
+    //         .startClean()
+    //         .withWillRetain();
+    //         .startClean()
+    //         .withWillTopic(deviceControlTopic)
+    //         .withWillMessage(jsonEncode(willMessage.toJson()))
+    //         .withWillQos(MqttQos.atLeastOnce)
+    //         .withWillRetain().withProtocolVersion(MqttClientConstants.mqttV311ProtocolVersion);
 
-    final willMessage = DeviceControl.leave(_device);
-    _client.connectionMessage =
-        MqttConnectMessage()
-            .withClientIdentifier(_device.ip)
-            .startClean()
-            .withWillTopic(deviceControlTopic)
-            .withWillMessage(jsonEncode(willMessage.toJson()))
-            .withWillQos(MqttQos.atLeastOnce)
-            .withWillRetain();
-
+    debugPrint("I am at connect5");
     await _client.connect();
+    debugPrint("I am at connect6");
 
     if (_client.connectionStatus!.state != MqttConnectionState.connected) {
       throw Exception('Failed to connect to MQTT broker');
@@ -130,6 +166,8 @@ class MeshNetwork {
   }
 
   void _onConnected() async {
+    debugPrint("I am at _onConnect");
+
     _isConnected = true;
     debugPrint('Connected to MQTT broker');
     await _subscribeToTopics();
@@ -144,6 +182,7 @@ class MeshNetwork {
     _client.subscribe(queueCommandTopic, MqttQos.atLeastOnce);
     _client.subscribe(deviceControlTopic, MqttQos.atLeastOnce);
     _client.subscribe(timeSyncTopic, MqttQos.atLeastOnce);
+    
   }
 
   Future<void> _announceDeviceJoin() async {
@@ -175,9 +214,10 @@ class MeshNetwork {
 
       try {
         final Map<String, dynamic> data = jsonDecode(payload);
+        debugPrint("UGAGAGAGAGA");
         _handleMessage(topic, data);
       } catch (e) {
-        debugPrint('Error parsing message from $topic: $e');
+        debugPrint('Error parsing message from $topic: $e, payload: $payload');
       }
     }
   }

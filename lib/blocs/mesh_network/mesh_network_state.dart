@@ -24,3 +24,16 @@ class MeshNetworkError extends MeshNetworkState {
 
   MeshNetworkError(this.error);
 }
+
+
+class MeshNetworkDiscovering extends MeshNetworkState {
+  final Map<String, String> discoveredDevices;
+
+  MeshNetworkDiscovering(this.discoveredDevices);
+}
+
+class MeshNetworkDeviceConnecting extends MeshNetworkState {
+  final String deviceId;
+
+  MeshNetworkDeviceConnecting(this.deviceId);
+}

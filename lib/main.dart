@@ -167,7 +167,9 @@ class _EchoSyncHomePageState extends State<EchoSyncHomePage> {
         listeners: [
           BlocListener<MeshNetworkBloc, MeshNetworkState>(
             listenWhen: (previous, current) {
-              return previous is MeshNetworkInitializing &&
+              debugPrint(" A MINHA PIXA È ROSA: $previous, $current");
+              return (previous is MeshNetworkInitializing ||
+                      previous is MeshNetworkDeviceConnecting) &&
                   current is MeshNetworkConnected;
             },
             listener: (context, state) {
