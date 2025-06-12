@@ -205,7 +205,12 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     Emitter<SyncManagerState> emit,
   ) async {
     try {
-      Song? song = await AudioFileService.pickSingleAudioFile();
+      Song? song = await AudioFileService.pickSingleAudioFile(
+        _syncManager!.fileServer,
+      );
+      debugPrint(
+        'Picked song: ${song?.title}, hash: ${song?.hash}, url: ${song?.downloadUrl}',
+      );
       if (song != null && _syncManager != null) {
         await _syncManager!.addToQueue(song, position: event.position);
       }
@@ -219,7 +224,9 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     Emitter<SyncManagerState> emit,
   ) async {
     try {
-      List<Song>? songs = await AudioFileService.pickAudioFiles();
+      List<Song>? songs = await AudioFileService.pickAudioFiles(
+        _syncManager!.fileServer,
+      );
       if (songs != null && _syncManager != null) {
         for (int i = 0; i < songs.length; i++) {
           int? position = event.position != null ? event.position! + i : null;
@@ -236,7 +243,10 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     Emitter<SyncManagerState> emit,
   ) async {
     try {
-      Song? song = await AudioFileService.createSongFromPath(event.filePath);
+      Song? song = await AudioFileService.createSongFromFile(
+        event.filePath,
+        _syncManager!.fileServer,
+      );
       if (song != null && _syncManager != null) {
         await _syncManager!.addToQueue(song, position: event.position);
       }

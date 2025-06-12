@@ -115,10 +115,8 @@ class _EchoSyncHomePageState extends State<EchoSyncHomePage> {
   Future<void> _initializeServices() async {
     try {
       _currentDevice = await _deviceInfoService.deviceInfo;
-
       if (!mounted) return;
 
-      // Initialize mesh network
       context.read<MeshNetworkBloc>().add(
         InitializeMeshNetwork(_currentDevice!),
       );
@@ -168,9 +166,12 @@ class _EchoSyncHomePageState extends State<EchoSyncHomePage> {
       body: MultiBlocListener(
         listeners: [
           BlocListener<MeshNetworkBloc, MeshNetworkState>(
+            listenWhen: (previous, current) {
+              return previous is MeshNetworkInitializing &&
+                  current is MeshNetworkConnected;
+            },
             listener: (context, state) {
               if (state is MeshNetworkConnected) {
-                // Initialize time sync when mesh network is connected
                 context.read<TimeSyncBloc>().add(
                   InitializeTimeSync(state.meshNetwork, _currentDevice!.ip),
                 );
@@ -178,11 +179,13 @@ class _EchoSyncHomePageState extends State<EchoSyncHomePage> {
             },
           ),
           BlocListener<TimeSyncBloc, TimeSyncState>(
+            listenWhen: (previous, current) {
+              return previous is! TimeSyncReady && current is TimeSyncReady;
+            },
             listener: (context, state) {
               if (state is TimeSyncReady) {
                 final meshState = context.read<MeshNetworkBloc>().state;
                 if (meshState is MeshNetworkConnected) {
-                  // Initialize sync manager when time sync is ready
                   context.read<SyncManagerBloc>().add(
                     InitializeSyncManager(
                       meshNetwork: meshState.meshNetwork,

@@ -12,7 +12,6 @@ import '../data/song.dart';
 class EchoSyncAudioHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler {
   final AudioPlayer _player = AudioPlayer();
-  final Map<String, String> _songPaths = {}; // Maps hash to file path
 
   // Callback to notify sync manager of local changes
   Function(String command, Map<String, dynamic>? params)? onLocalControl;
@@ -48,61 +47,41 @@ class EchoSyncAudioHandler extends BaseAudioHandler
       title: song.title,
       artist: song.artist,
       duration: song.duration,
-      artUri:
-          song.cover != null
-              ? Uri.dataFromBytes(song.cover!, mimeType: 'image/jpeg')
-              : null,
+      artUri: null, // TODO: Handle cover art if available
     );
   }
 
-  // Load song file and prepare for playback
-  Future<void> _loadSong(Song song) async {
-    debugPrint("HERE MFSSS");
-    final Directory tempDir = await getTemporaryDirectory();
-    final songPath = _songPaths[song.hash] ?? '${tempDir.path}/${song.hash}';
-
-    final file = File(songPath);
-    if (!await file.exists()) {
-      throw Exception('Audio file does not exist: $songPath');
-    }
-
-    await _player.setAudioSource(AudioSource.file(songPath));
-    mediaItem.add(_songToMediaItem(song));
-  }
-
-  // Register a song file path with its hash
-  void registerSongPath(String hash, String filePath) {
-    _songPaths[hash] = filePath;
-  }
-
-  // Synchronized playback control - called by SyncManager
   Future<void> executeSyncedPlay({
     Song? song,
     Duration? position,
     DateTime? scheduledTime,
   }) async {
-    try {
-      if (song != null) {
-        await _loadSong(song);
+    if (song != null) {
+      final Directory tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/${song.hash}.${song.extension}');
+
+      if (!await file.exists()) {
+        throw Exception('Audio file does not exist: ${file.path}');
       }
 
-      if (position != null) {
-        await _player.seek(position);
-      }
-
-      if (scheduledTime != null) {
-        final now = DateTime.now();
-        final delay = scheduledTime.difference(now);
-
-        if (delay.inMilliseconds > 0) {
-          await Future.delayed(delay);
-        }
-      }
-
-      await _player.play();
-    } catch (e) {
-      debugPrint('Error in executeSyncedPlay: $e');
+      await _player.setAudioSource(AudioSource.file(file.path));
+      mediaItem.add(_songToMediaItem(song));
     }
+
+    if (position != null) {
+      await _player.seek(position);
+    }
+
+    if (scheduledTime != null) {
+      final now = DateTime.now();
+      final delay = scheduledTime.difference(now);
+
+      if (delay.inMilliseconds > 0) {
+        await Future.delayed(delay);
+      }
+    }
+
+    await _player.play();
   }
 
   Future<void> executeSyncedPause({DateTime? scheduledTime}) async {
@@ -166,7 +145,6 @@ class EchoSyncAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> seek(Duration position) async {
-    debugPrint("-> PIXA LALALALALLAA: Seeking to position: $position");
     onLocalControl?.call('seek', {'position': position.inMilliseconds});
   }
 
