@@ -412,7 +412,6 @@ class SyncManager {
     );
 
     await _meshNetwork.publishQueueCommand(command);
-    _handleRemoteQueueCommand(command);
   }
 
   Future<void> playAtIndex(int index, {int delayMs = 100}) async {
@@ -428,7 +427,6 @@ class SyncManager {
       index: index,
     );
     await _meshNetwork.publishQueueCommand(queueCommand);
-    _handleRemoteQueueCommand(queueCommand);
 
     // Play the song at the specified index
     final song = _localQueueState!.songs[index];
