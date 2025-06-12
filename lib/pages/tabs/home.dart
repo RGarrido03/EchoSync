@@ -79,7 +79,11 @@ class HomeTab extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Symbols.queue_music_rounded, size: 64),
+                    Icon(
+                      Symbols.queue_music_rounded,
+                      size: 64,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'No songs in queue',

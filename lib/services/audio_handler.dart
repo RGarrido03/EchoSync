@@ -6,9 +6,9 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:volume_controller/volume_controller.dart';
 
 import '../data/song.dart';
-import 'cover_file_service.dart';
 
 class EchoSyncAudioHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler {
@@ -120,6 +120,28 @@ class EchoSyncAudioHandler extends BaseAudioHandler
       await _player.seek(position);
     } catch (e) {
       debugPrint('Error in executeSyncedSeek: $e');
+    }
+  }
+
+  // Synchronized volume control
+  Future<void> executeSyncedSetVolume({
+    required double volume,
+    DateTime? scheduledTime,
+  }) async {
+    try {
+      debugPrint('Synced set volume: $volume');
+      if (scheduledTime != null) {
+        final now = DateTime.now();
+        final delay = scheduledTime.difference(now);
+
+        if (delay.inMilliseconds > 0) {
+          await Future.delayed(delay);
+        }
+      }
+
+      await VolumeController.instance.setVolume(volume);
+    } catch (e) {
+      debugPrint('Error in executeSyncedSetVolume: $e');
     }
   }
 
