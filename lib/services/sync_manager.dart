@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:echosync/services/time_sync.dart';
 import 'package:flutter/foundation.dart';
+import 'package:volume_controller/volume_controller.dart';
 
 import '../data/device.dart';
 import '../data/protocol/base.dart';
@@ -78,6 +79,10 @@ class SyncManager {
     _queueCommandSubscription = _meshNetwork.streams.queueCommandStream.listen(
       _handleRemoteQueueCommand,
     );
+
+    VolumeController.instance.addListener((volume) {
+      setVolume(volume);
+    }, fetchInitialVolume: false);
   }
 
   void _handleLocalAudioControl(String command, Map<String, dynamic>? params) {
@@ -118,7 +123,7 @@ class SyncManager {
       final now = DateTime.now().millisecondsSinceEpoch;
       final delay = localScheduledTime - now;
 
-      Timer(Duration(milliseconds: delay > 0 ? delay : 0), () {
+      Timer(Duration(milliseconds: delay > 0 ? delay : 0), () async {
         {
           if (_localPlaybackState == null) return;
 
@@ -181,11 +186,32 @@ class SyncManager {
               break;
 
             case 'set_volume':
+              if (command.senderId == _deviceId) {
+                return;
+              }
               final volume = command.params?['volume'] as double? ?? 1.0;
+              final current = await VolumeController.instance.getVolume();
+
+              if (volume < 0 || volume > 1) {
+                debugPrint(
+                  'Invalid volume: $volume, using current volume: $current',
+                );
+                return;
+              }
+              if (volume == current) {
+                return;
+              }
               newState = _localPlaybackState!.copyWith(
                 volume: volume,
                 lastUpdated: _timeSyncService.getNetworkTime(),
                 updatedByDevice: _deviceId,
+              );
+
+              _audioHandler.executeSyncedSetVolume(
+                volume: volume,
+                scheduledTime: DateTime.fromMillisecondsSinceEpoch(
+                  command.scheduledTime.millisSinceEpoch,
+                ),
               );
               break;
           }
@@ -353,6 +379,10 @@ class SyncManager {
     if (_localPlaybackState == null ||
         state.lastUpdated.millisSinceEpoch >
             _localPlaybackState!.lastUpdated.millisSinceEpoch) {
+      if (_localPlaybackState?.volume != state.volume) {
+        _audioHandler.executeSyncedSetVolume(volume: state.volume);
+      }
+
       _localPlaybackState = state;
       _playbackStateController.add(state);
     }
@@ -406,6 +436,20 @@ class SyncManager {
       scheduledTime: scheduledTime,
       senderId: _deviceId,
       position: position,
+    );
+
+    await _meshNetwork.publishPlaybackCommand(command);
+  }
+
+  Future<void> setVolume(double volume, {int delayMs = 100}) async {
+    final scheduledTime = NetworkTime(
+      _timeSyncService.getNetworkTime().millisSinceEpoch + delayMs,
+    );
+
+    final command = PlaybackCommand.setVolume(
+      scheduledTime: scheduledTime,
+      senderId: _deviceId,
+      volume: volume,
     );
 
     await _meshNetwork.publishPlaybackCommand(command);
