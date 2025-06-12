@@ -249,9 +249,7 @@ class MeshNetwork {
 
       case queueCommandTopic:
         final command = QueueCommand.fromJson(data);
-        if (command.senderId != _device.ip) {
-          _streams._queueCommandController.add(command);
-        }
+        _streams._queueCommandController.add(command);
         break;
 
       case deviceControlTopic:

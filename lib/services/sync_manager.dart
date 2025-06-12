@@ -11,6 +11,7 @@ import '../data/protocol/playback.dart';
 import '../data/protocol/queue.dart';
 import '../data/song.dart';
 import 'audio_handler.dart';
+import 'cover_file_service.dart';
 import 'file_download.dart';
 import 'file_server.dart';
 import 'mesh_network.dart';
@@ -321,6 +322,15 @@ class SyncManager {
       if (!success) {
         throw Exception('Failed to download song: ${song.title}');
       }
+
+      if (song.cover != null) {
+        final existingCoverPath = await CoverFileService.getCoverFilePath(
+          song.hash,
+        );
+        if (existingCoverPath == null) {
+          await CoverFileService.saveCoverToFile(song.hash, song.cover!);
+        }
+      }
     }
   }
 
@@ -412,7 +422,6 @@ class SyncManager {
     );
 
     await _meshNetwork.publishQueueCommand(command);
-    _handleRemoteQueueCommand(command);
   }
 
   Future<void> playAtIndex(int index, {int delayMs = 100}) async {
@@ -428,7 +437,6 @@ class SyncManager {
       index: index,
     );
     await _meshNetwork.publishQueueCommand(queueCommand);
-    _handleRemoteQueueCommand(queueCommand);
 
     // Play the song at the specified index
     final song = _localQueueState!.songs[index];

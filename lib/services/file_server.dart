@@ -36,7 +36,7 @@ class FileServerService {
       _server = await HttpServer.bind(InternetAddress.anyIPv4, port);
       _isRunning = true;
 
-      debugPrint('File server started on ${_deviceIp}:$port');
+      debugPrint('File server started on $_deviceIp:$port');
 
       _server!.listen((HttpRequest request) async {
         await _handleRequest(request);

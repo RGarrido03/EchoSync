@@ -6,52 +6,24 @@ import 'package:flutter/foundation.dart';
 import 'package:metadata_god/metadata_god.dart';
 
 import '../data/song.dart';
+import 'cover_file_service.dart';
 import 'file_server.dart';
 
 class AudioFileService {
-  static Future<List<Song>?> pickAudioFiles(
-    FileServerService fileServer,
-  ) async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.audio,
-        allowMultiple: true,
-      );
-
-      if (result != null && result.files.isNotEmpty) {
-        List<Song> songs = [];
-
-        for (PlatformFile file in result.files) {
-          if (file.path != null) {
-            Song? song = await createSongFromFile(file.path!, fileServer);
-            if (song != null) {
-              songs.add(song);
-            }
-          }
-        }
-
-        return songs.isNotEmpty ? songs : null;
-      }
-    } catch (e) {
-      debugPrint('Error picking audio files: $e');
+  static Future<List<Song>> pickAudioFiles(FileServerService fileServer) async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.audio,
+      allowMultiple: true,
+    );
+    if (result == null || result.files.isEmpty) {
+      debugPrint('No files selected');
+      return [];
     }
-    return null;
-  }
-
-  static Future<Song?> pickSingleAudioFile(FileServerService fileServer) async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.audio,
-        allowMultiple: false,
-      );
-
-      if (result != null && result.files.single.path != null) {
-        return await createSongFromFile(result.files.single.path!, fileServer);
-      }
-    } catch (e) {
-      debugPrint('Error picking audio file: $e');
-    }
-    return null;
+    return await Future.wait(
+      result.files
+          .where((f) => f.path != null)
+          .map((f) async => (await createSongFromFile(f.path!, fileServer))!),
+    );
   }
 
   static Future<Song?> createSongFromFile(
@@ -71,6 +43,10 @@ class AudioFileService {
       Metadata tag = await MetadataGod.readMetadata(file: filePath);
 
       await fileServer.addFileToServer(file, '$hash.$extension');
+
+      if (tag.picture?.data != null) {
+        await CoverFileService.saveCoverToFile(hash, tag.picture!.data);
+      }
 
       return Song(
         hash: hash,
