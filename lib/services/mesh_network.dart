@@ -66,12 +66,12 @@ class MeshNetwork {
   final MeshNetworkStreams _streams = MeshNetworkStreams();
 
   // Topics
-  static const String _baseTopic = 'echosync';
+  static const String _baseTopic = "echosync";
   static const String playbackStateTopic = '$_baseTopic/playback/state';
   static const String queueStateTopic = '$_baseTopic/queue/state';
   static const String deviceRegistryTopic = '$_baseTopic/devices/registry';
   static const String playbackCommandTopic = '$_baseTopic/playback/command';
-  static const String queueCommandTopic = '$_baseTopic/queue/command';
+  static const String queueCommandTopic = "$_baseTopic/queue/command";
   static const String deviceControlTopic = '$_baseTopic/devices/control';
   static const String timeSyncTopic = '$_baseTopic/time/sync';
 
@@ -141,14 +141,13 @@ class MeshNetwork {
       debugPrint('Warning: File server failed to start');
     }
     // For now useless...
-    final willMessage = DeviceControl.leave(_device);
-    _client.connectionMessage =
-        MqttConnectMessage()
-            .withClientIdentifier(_device.ip)
-            .withProtocolVersion(MqttClientConstants.mqttV311ProtocolVersion)
-            .startClean()
-            .withWillQos(MqttQos.exactlyOnce)
-            .withWillRetain();
+    // final willMessage = DeviceControl.leave(_device);
+    // _client.connectionMessage =
+    //     MqttConnectMessage()
+    //         .withClientIdentifier(_device.ip)
+    //         .withProtocolVersion(MqttClientConstants.mqttV311ProtocolVersion)
+    //         .startClean()
+    //         .withWillRetain();
     //         .startClean()
     //         .withWillTopic(deviceControlTopic)
     //         .withWillMessage(jsonEncode(willMessage.toJson()))
@@ -183,6 +182,7 @@ class MeshNetwork {
     _client.subscribe(queueCommandTopic, MqttQos.atLeastOnce);
     _client.subscribe(deviceControlTopic, MqttQos.atLeastOnce);
     _client.subscribe(timeSyncTopic, MqttQos.atLeastOnce);
+    
   }
 
   Future<void> _announceDeviceJoin() async {
@@ -214,9 +214,10 @@ class MeshNetwork {
 
       try {
         final Map<String, dynamic> data = jsonDecode(payload);
+        debugPrint("UGAGAGAGAGA");
         _handleMessage(topic, data);
       } catch (e) {
-        debugPrint('Error parsing message from $topic: $e');
+        debugPrint('Error parsing message from $topic: $e, payload: $payload');
       }
     }
   }

@@ -38,7 +38,7 @@ Future<void> main() async {
   // debugPrint('Persistent MQTT broker stopped');
 
   // let's make a client to subscribe to a topic
-  final client = MqttServerClient('192.168.1.159', 'maPIXA');
+  final client = MqttServerClient('192.168.191.59', 'maPIXA');
   client.port = 1883;
 
   client.onDisconnected = () {
@@ -55,7 +55,16 @@ Future<void> main() async {
     debugPrint('Client connected to broker');
 
     // Subscribe to a topic
-    client.subscribe('teste/pila', MqttQos.atLeastOnce);
+    client.subscribe('echosync/queue/command', MqttQos.atLeastOnce);
+    final pixa = "echosync";
+    // publish some messages
+    final builder = MqttClientPayloadBuilder();
+    for (int i = 0; i < 5; i++) {
+      builder.addString('Message $i');
+      client.publishMessage('$pixa/queue/command', MqttQos.atLeastOnce, builder.payload!);
+      debugPrint('Published message: Message $i');
+      await Future.delayed(Duration(seconds: 1)); // Delay to simulate message sending
+    }
 
     // Listen for messages
     client.updates!.listen((List<MqttReceivedMessage<MqttMessage>> messages) {
