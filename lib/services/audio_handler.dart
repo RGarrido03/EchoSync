@@ -8,6 +8,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../data/song.dart';
+import 'cover_file_service.dart';
 
 class EchoSyncAudioHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler {
@@ -40,14 +41,14 @@ class EchoSyncAudioHandler extends BaseAudioHandler
   }
 
   // Convert Song to MediaItem
-  MediaItem _songToMediaItem(Song song) {
+  Future<MediaItem> _songToMediaItem(Song song) async {
     return MediaItem(
       id: song.hash,
       album: song.album,
       title: song.title,
       artist: song.artist,
       duration: song.duration,
-      artUri: null, // TODO: Handle cover art if available
+      artUri: await song.getCoverArtUri(),
     );
   }
 
@@ -65,7 +66,7 @@ class EchoSyncAudioHandler extends BaseAudioHandler
       }
 
       await _player.setAudioSource(AudioSource.file(file.path));
-      mediaItem.add(_songToMediaItem(song));
+      mediaItem.add(await _songToMediaItem(song));
     }
 
     if (position != null) {
@@ -123,8 +124,8 @@ class EchoSyncAudioHandler extends BaseAudioHandler
   }
 
   // Update queue from sync manager
-  void updateQueueFromSync(List<Song> songs, int currentIndex) {
-    final mediaItems = songs.map(_songToMediaItem).toList();
+  Future<void> updateQueueFromSync(List<Song> songs, int currentIndex) async {
+    final mediaItems = await Future.wait(songs.map(_songToMediaItem));
     queue.add(mediaItems);
 
     if (currentIndex >= 0 && currentIndex < mediaItems.length) {

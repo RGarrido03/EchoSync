@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:metadata_god/metadata_god.dart';
 
 import '../data/song.dart';
+import 'cover_file_service.dart';
 import 'file_server.dart';
 
 class AudioFileService {
@@ -42,6 +43,10 @@ class AudioFileService {
       Metadata tag = await MetadataGod.readMetadata(file: filePath);
 
       await fileServer.addFileToServer(file, '$hash.$extension');
+
+      if (tag.picture?.data != null) {
+        await CoverFileService.saveCoverToFile(hash, tag.picture!.data);
+      }
 
       return Song(
         hash: hash,

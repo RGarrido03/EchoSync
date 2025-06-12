@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:json_annotation/json_annotation.dart';
 
+import '../services/cover_file_service.dart';
+
 part 'song.g.dart';
 
 class Uint8ListJsonConverter extends JsonConverter<Uint8List, List<dynamic>> {
@@ -73,5 +75,16 @@ class Song {
       cover: cover ?? this.cover,
       downloadUrl: downloadUrl ?? this.downloadUrl,
     );
+  }
+
+  /// Get the file path for the cover art if it exists
+  Future<String?> getCoverFilePath() async {
+    return await CoverFileService.getCoverFilePath(hash);
+  }
+
+  /// Get the cover art URI for use in MediaItem
+  Future<Uri?> getCoverArtUri() async {
+    final filePath = await getCoverFilePath();
+    return filePath != null ? Uri.file(filePath) : null;
   }
 }
