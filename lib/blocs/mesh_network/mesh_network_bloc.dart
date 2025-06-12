@@ -9,13 +9,11 @@ import '../../services/mesh_network.dart';
 import '../../services/nearby.dart';
 
 part 'mesh_network_event.dart';
-
 part 'mesh_network_state.dart';
 
 class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
   MeshNetwork? _meshNetwork;
   StreamSubscription<Map<String, Device>>? _devicesSubscription;
-  String _testBrokerIp = '192.168.1.107';
 
   NearbyService? _nearbyService;
   StreamSubscription<Map<String, String>>? _nearbyDiscoverySubscription;
@@ -154,7 +152,6 @@ class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
         //     connectedDevices: _meshNetwork!.connectedDevices,
         //   ),
         // );
-        _meshNetwork?.reconnectToBroker("192.168.1.107");
         debugPrint('NearbyBloc: Started advertising as leader: $started');
       } else {
         started = await _nearbyService!.startDiscovery();
@@ -206,7 +203,6 @@ class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
     // discoveredDevices.clear();
 
     if (state is MeshNetworkConnected) {
-
       emit(
         MeshNetworkConnected(
           meshNetwork: _meshNetwork!,
@@ -276,25 +272,26 @@ class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
   }
 
   Future<MeshNetwork?> _reconnectToSharedBroker(String brokerIp) async {
-    if (_meshNetwork != null) {
-      try {
-        await _meshNetwork!.disconnect();
+    if (_meshNetwork == null) {
+      return null;
+    }
+    try {
+      await _meshNetwork!.disconnect();
 
-        _meshNetwork = MeshNetwork(
-          deviceInfo: _meshNetwork!.device,
-          brokerIp: _testBrokerIp,
-          // brokerIp: brokerIp
-        );
+      _meshNetwork = MeshNetwork(
+        deviceInfo: _meshNetwork!.device,
+        brokerIp: brokerIp,
+        // brokerIp: brokerIp
+      );
 
-        await _meshNetwork!.connect();
+      await _meshNetwork!.connect();
 
-        debugPrint('Successfully reconnected to broker at $brokerIp');
-        return _meshNetwork!;
-      } catch (e) {
-        debugPrint('Failed to reconnect to broker at $brokerIp: $e');
-        // Emit error state if needed
-        return null;
-      }
+      debugPrint('Successfully reconnected to broker at $brokerIp');
+      return _meshNetwork!;
+    } catch (e) {
+      debugPrint('Failed to reconnect to broker at $brokerIp: $e');
+      // Emit error state if needed
+      return null;
     }
   }
 

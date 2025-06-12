@@ -8,8 +8,8 @@ import 'package:echosync/data/protocol/queue.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
-
 import 'package:mqtt_server/mqtt_server.dart';
+
 import '../data/device.dart';
 import '../data/protocol/device.dart';
 import '../data/protocol/sync.dart';
@@ -108,9 +108,7 @@ class MeshNetwork {
   }
 
   void _setupMqttClient() {
-    _client = MqttServerClient("192.168.1.107", _device.ip);
-    // debugPrint("I am at setupMqttClient2 and brokerIp__ is ${brokerIp__ ?? _device.ip}");
-    // _client = MqttServerClient(brokerIp__ ?? _device.ip, _device.ip);
+    _client = MqttServerClient(brokerIp__ ?? _device.ip, _device.ip);
     _client.port = 1883;
 
     _client.keepAlivePeriod = 20;
@@ -184,7 +182,6 @@ class MeshNetwork {
     _client.subscribe(queueCommandTopic, MqttQos.atLeastOnce);
     _client.subscribe(deviceControlTopic, MqttQos.atLeastOnce);
     _client.subscribe(timeSyncTopic, MqttQos.atLeastOnce);
-
   }
 
   Future<void> _announceDeviceJoin() async {
@@ -376,13 +373,11 @@ class MeshNetwork {
 
       debugPrint('Successfully reconnected to broker: $newBrokerIp');
       return true;
-
     } catch (e) {
       debugPrint('Failed to reconnect to broker $newBrokerIp: $e');
       return false;
     }
   }
-
 
   void dispose() {
     disconnect();
