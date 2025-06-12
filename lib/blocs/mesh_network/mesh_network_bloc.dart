@@ -9,12 +9,13 @@ import '../../services/mesh_network.dart';
 import '../../services/nearby.dart';
 
 part 'mesh_network_event.dart';
+
 part 'mesh_network_state.dart';
 
 class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
   MeshNetwork? _meshNetwork;
   StreamSubscription<Map<String, Device>>? _devicesSubscription;
-
+  String _testBrokerIp = '192.168.1.107';
 
   NearbyService? _nearbyService;
   StreamSubscription<Map<String, String>>? _nearbyDiscoverySubscription;
@@ -106,22 +107,27 @@ class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
     }
   }
 
-
   Future<void> _onStartDeviceDiscovery(
-      StartDeviceDiscovery event,
-      Emitter<MeshNetworkState> emit,
-      ) async {
+    StartDeviceDiscovery event,
+    Emitter<MeshNetworkState> emit,
+  ) async {
     try {
       _nearbyService ??= NearbyService();
 
       final initialized = await _nearbyService!.initialize();
       if (!initialized) {
-        emit(MeshNetworkError('Failed to initialize Nearby Connections - check permissions'));
+        emit(
+          MeshNetworkError(
+            'Failed to initialize Nearby Connections - check permissions',
+          ),
+        );
         return;
       }
 
       // Setup connection listener apenas (sem emit)
-      _nearbyConnectionSubscription = _nearbyService!.connectionStream.listen((data) {
+      _nearbyConnectionSubscription = _nearbyService!.connectionStream.listen((
+        data,
+      ) {
         debugPrint('NearbyBloc: Connection event: $data');
         if (data['type'] == 'connected') {
           debugPrint('Device connected: ${data['deviceId']}');
@@ -141,6 +147,14 @@ class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
       bool started = false;
       if (event.isLeader) {
         started = await _nearbyService!.startAdvertising();
+        // _meshNetwork = await _reconnectToSharedBroker(_testBrokerIp);
+        // emit(
+        //   MeshNetworkConnected(
+        //     meshNetwork: _meshNetwork!,
+        //     connectedDevices: _meshNetwork!.connectedDevices,
+        //   ),
+        // );
+        _meshNetwork?.reconnectToBroker("192.168.1.107");
         debugPrint('NearbyBloc: Started advertising as leader: $started');
       } else {
         started = await _nearbyService!.startDiscovery();
@@ -148,7 +162,11 @@ class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
       }
 
       if (!started) {
-        emit(MeshNetworkError('Failed to start ${event.isLeader ? "advertising" : "discovery"}'));
+        // emit(
+        //   MeshNetworkError(
+        //     'Failed to start ${event.isLeader ? "advertising" : "discovery"}',
+        //   ),
+        // );
         return;
       }
 
@@ -156,74 +174,84 @@ class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
       await emit.forEach<Map<String, String>>(
         _nearbyService!.discoveredDevicesStream,
         onData: (devices) {
-          debugPrint('NearbyBloc: Discovered devices updated via forEach: $devices');
+          debugPrint(
+            'NearbyBloc: Discovered devices updated via forEach: $devices',
+          );
           discoveredDevices = Map.from(devices);
           return MeshNetworkDiscovering(Map.from(discoveredDevices));
         },
         onError: (error, stackTrace) {
           debugPrint('NearbyBloc: Error in discovered devices stream: $error');
-          return MeshNetworkError('Discovery stream error: ${error.toString()}');
+          return MeshNetworkError(
+            'Discovery stream error: ${error.toString()}',
+          );
         },
       );
-
     } catch (e) {
       debugPrint('NearbyBloc: Error in start discovery: $e');
-      emit(MeshNetworkError('Failed to start device discovery: ${e.toString()}'));
+      emit(
+        MeshNetworkError('Failed to start device discovery: ${e.toString()}'),
+      );
     }
   }
 
-
-
   Future<void> _onStopDeviceDiscovery(
-      StopDeviceDiscovery event,
-      Emitter<MeshNetworkState> emit,
-      ) async {
+    StopDeviceDiscovery event,
+    Emitter<MeshNetworkState> emit,
+  ) async {
     await _nearbyService?.stop();
     _nearbyConnectionSubscription?.cancel();
     _nearbyMessageSubscription?.cancel();
     _nearbyDiscoverySubscription?.cancel(); // Adicionar esta linha
-    discoveredDevices.clear();
+    // discoveredDevices.clear();
 
     if (state is MeshNetworkConnected) {
-      emit(MeshNetworkConnected(
-        meshNetwork: _meshNetwork!,
-        connectedDevices: _meshNetwork!.connectedDevices,
-      ));
+
+      emit(
+        MeshNetworkConnected(
+          meshNetwork: _meshNetwork!,
+          connectedDevices: _meshNetwork!.connectedDevices,
+        ),
+      );
     }
   }
 
   void _onDiscoveredDeviceFound(
-      DiscoveredDeviceFound event,
-      Emitter<MeshNetworkState> emit,
-      ) {
+    DiscoveredDeviceFound event,
+    Emitter<MeshNetworkState> emit,
+  ) {
     discoveredDevices[event.deviceId] = event.deviceName;
     emit(MeshNetworkDiscovering(Map.from(discoveredDevices)));
   }
 
   Future<void> _onConnectToDiscoveredDevice(
-      ConnectToDiscoveredDevice event,
-      Emitter<MeshNetworkState> emit,
-      ) async {
+    ConnectToDiscoveredDevice event,
+    Emitter<MeshNetworkState> emit,
+  ) async {
     print('Connecting to discovered device: ${event.deviceId}');
     emit(MeshNetworkDeviceConnecting(event.deviceId));
     // Connection logic is handled by NearbyService callbacks
 
-    if (_nearbyService != null && discoveredDevices.containsKey(event.deviceId)) {
-      await _reconnectToSharedBroker(discoveredDevices[event.deviceId]!);
+    if (_nearbyService != null &&
+        discoveredDevices.containsKey(event.deviceId)) {
+      // await _reconnectToSharedBroker(discoveredDevices[event.deviceId]!);
+      // _meshNetwork = await _reconnectToSharedBroker(_testBrokerIp);
       await _nearbyService?.stop();
-      discoveredDevices.clear();
+      // discoveredDevices.clear();
 
-      emit(MeshNetworkConnected(
-        meshNetwork: _meshNetwork!,
-        connectedDevices: _meshNetwork!.connectedDevices,
-      ));
+      // emit(
+      //   MeshNetworkConnected(
+      //     meshNetwork: _meshNetwork!,
+      //     connectedDevices: _meshNetwork!.connectedDevices,
+      //   ),
+      // );
     }
   }
 
   Future<void> _onShareNetworkInfo(
-      ShareNetworkInfo event,
-      Emitter<MeshNetworkState> emit,
-      ) async {
+    ShareNetworkInfo event,
+    Emitter<MeshNetworkState> emit,
+  ) async {
     if (_meshNetwork != null && _nearbyService != null) {
       final networkInfo = {
         'type': 'mqtt_info',
@@ -247,27 +275,28 @@ class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
     }
   }
 
-  Future<void> _reconnectToSharedBroker(String brokerIp) async {
+  Future<MeshNetwork?> _reconnectToSharedBroker(String brokerIp) async {
     if (_meshNetwork != null) {
       try {
         await _meshNetwork!.disconnect();
 
         _meshNetwork = MeshNetwork(
-            deviceInfo: _meshNetwork!.device,
-            brokerIp: brokerIp
+          deviceInfo: _meshNetwork!.device,
+          brokerIp: _testBrokerIp,
+          // brokerIp: brokerIp
         );
 
         await _meshNetwork!.connect();
 
-
         debugPrint('Successfully reconnected to broker at $brokerIp');
+        return _meshNetwork!;
       } catch (e) {
         debugPrint('Failed to reconnect to broker at $brokerIp: $e');
         // Emit error state if needed
+        return null;
       }
     }
   }
-
 
   @override
   Future<void> close() {

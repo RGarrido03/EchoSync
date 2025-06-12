@@ -108,7 +108,9 @@ class MeshNetwork {
   }
 
   void _setupMqttClient() {
-    _client = MqttServerClient(brokerIp__ ?? _device.ip, _device.ip);
+    _client = MqttServerClient("192.168.1.107", _device.ip);
+    // debugPrint("I am at setupMqttClient2 and brokerIp__ is ${brokerIp__ ?? _device.ip}");
+    // _client = MqttServerClient(brokerIp__ ?? _device.ip, _device.ip);
     _client.port = 1883;
 
     _client.keepAlivePeriod = 20;
@@ -182,7 +184,7 @@ class MeshNetwork {
     _client.subscribe(queueCommandTopic, MqttQos.atLeastOnce);
     _client.subscribe(deviceControlTopic, MqttQos.atLeastOnce);
     _client.subscribe(timeSyncTopic, MqttQos.atLeastOnce);
-    
+
   }
 
   Future<void> _announceDeviceJoin() async {
@@ -197,7 +199,7 @@ class MeshNetwork {
   void _onDisconnected() {
     debugPrint('Disconnected from MQTT broker');
     _isConnected = false;
-    _connectedDevices.clear();
+    // _connectedDevices.clear();
     _streams._devicesController.add({});
   }
 
@@ -238,7 +240,7 @@ class MeshNetwork {
 
       case deviceRegistryTopic:
         final registry = DeviceRegistry.fromJson(data);
-        _connectedDevices.clear();
+        // _connectedDevices.clear();
         _connectedDevices.addAll(registry.devices);
         _streams._devicesController.add(Map.from(_connectedDevices));
         break;
@@ -345,7 +347,42 @@ class MeshNetwork {
     final leaveMessage = DeviceControl.leave(_device);
     await _publishMessage(deviceControlTopic, leaveMessage.toJson());
     _client.disconnect();
+    _mqttBroker.stop();
   }
+
+  Future<bool> reconnectToBroker(String newBrokerIp) async {
+    try {
+      debugPrint('Starting reconnection to broker: $newBrokerIp');
+
+      if (_isConnected) {
+        debugPrint('Disconnecting from current broker...');
+        final leaveMessage = DeviceControl.leave(_device);
+        await _publishMessage(deviceControlTopic, leaveMessage.toJson());
+        _client.disconnect();
+        _isConnected = false;
+      }
+
+      if (brokerIp__ == _device.ip) {
+        debugPrint('Stopping local MQTT broker...');
+        _mqttBroker.stop();
+      }
+
+      brokerIp__ = newBrokerIp;
+      debugPrint('Updated broker IP to: $newBrokerIp');
+
+      _setupMqttClient();
+
+      await connect();
+
+      debugPrint('Successfully reconnected to broker: $newBrokerIp');
+      return true;
+
+    } catch (e) {
+      debugPrint('Failed to reconnect to broker $newBrokerIp: $e');
+      return false;
+    }
+  }
+
 
   void dispose() {
     disconnect();

@@ -196,9 +196,11 @@ class _AddDeviceScreenState extends State<AddDeviceScreen> {
             subtitle: Text(deviceId),
             trailing: ElevatedButton(
               onPressed: () {
-                context.read<MeshNetworkBloc>().add(
-                  ConnectToDiscoveredDevice(deviceId),
-                );
+                // Navigate to home page
+                Navigator.of(context).pop();
+                // context.read<MeshNetworkBloc>().add(
+                //   ConnectToDiscoveredDevice(deviceId),
+                // );
               },
               child: const Text('Connect'),
             ),
