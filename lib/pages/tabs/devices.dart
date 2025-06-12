@@ -157,7 +157,7 @@ class DevicesTab extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 Text(
-                  "You're known as: ${context.read<MeshNetworkBloc>().meshNetwork?.device.name ?? 'Unknown'}",
+                  "You're known as: ${context.read<MeshNetworkBloc>().meshNetwork?.device.name ?? 'Unknown'} and the broker is at:${context.read<MeshNetworkBloc>().meshNetwork?.brokerIp__ ?? 'Unknown IP'}",
                   style: Theme.of(context).textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),

@@ -259,6 +259,7 @@ class MeshNetworkBloc extends Bloc<MeshNetworkEvent, MeshNetworkState> {
 
         await _meshNetwork!.connect();
 
+
         debugPrint('Successfully reconnected to broker at $brokerIp');
       } catch (e) {
         debugPrint('Failed to reconnect to broker at $brokerIp: $e');

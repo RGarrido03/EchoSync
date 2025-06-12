@@ -60,7 +60,7 @@ class MeshNetwork {
   late final FileServerService _fileServer;
   final Map<String, Device> _connectedDevices = {};
   late MqttServerClient _client;
-  late String? _brokerIp;
+  late String? brokerIp__;
   late MqttBroker _mqttBroker;
   bool _isConnected = false;
   final MeshNetworkStreams _streams = MeshNetworkStreams();
@@ -88,9 +88,9 @@ class MeshNetwork {
   MeshNetwork({required Device deviceInfo, String? brokerIp}) {
     _device = deviceInfo;
     _fileServer = FileServerService();
-    _brokerIp = brokerIp;
+    brokerIp__ = brokerIp;
     if (brokerIp == null) {
-      _brokerIp = deviceInfo.ip;
+      brokerIp__ = deviceInfo.ip;
       _setupMqttBroker();
     }
     _setupMqttClient();
@@ -108,8 +108,9 @@ class MeshNetwork {
   }
 
   void _setupMqttClient() {
-    _client = MqttServerClient(_brokerIp ?? _device.ip, _device.ip);
+    _client = MqttServerClient(brokerIp__ ?? _device.ip, _device.ip);
     _client.port = 1883;
+
     _client.keepAlivePeriod = 20;
     _client.autoReconnect = true;
     _client.onConnected = _onConnected;
@@ -123,7 +124,7 @@ class MeshNetwork {
 
   Future<void> connect() async {
     debugPrint("I am at connect");
-    if (_brokerIp == _device.ip) {
+    if (brokerIp__ == _device.ip) {
       await _mqttBroker.start();
     }
 
@@ -140,10 +141,14 @@ class MeshNetwork {
       debugPrint('Warning: File server failed to start');
     }
     // For now useless...
-    // final willMessage = DeviceControl.leave(_device);
-    // _client.connectionMessage =
-    //     MqttConnectMessage()
-    //         .withClientIdentifier(_device.ip)
+    final willMessage = DeviceControl.leave(_device);
+    _client.connectionMessage =
+        MqttConnectMessage()
+            .withClientIdentifier(_device.ip)
+            .withProtocolVersion(MqttClientConstants.mqttV311ProtocolVersion)
+            .startClean()
+            .withWillQos(MqttQos.exactlyOnce)
+            .withWillRetain();
     //         .startClean()
     //         .withWillTopic(deviceControlTopic)
     //         .withWillMessage(jsonEncode(willMessage.toJson()))
