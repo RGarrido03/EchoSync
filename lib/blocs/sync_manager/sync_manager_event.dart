@@ -71,12 +71,6 @@ class PickAndAddSongToQueue extends SyncManagerEvent {
   PickAndAddSongToQueue({this.position});
 }
 
-class PickAndAddMultipleSongsToQueue extends SyncManagerEvent {
-  final int? position;
-
-  PickAndAddMultipleSongsToQueue({this.position});
-}
-
 class AddSongFromPath extends SyncManagerEvent {
   final String filePath;
   final int? position;

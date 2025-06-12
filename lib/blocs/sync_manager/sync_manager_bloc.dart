@@ -19,6 +19,7 @@ import '../../services/sync_manager.dart';
 import '../../services/time_sync.dart';
 
 part 'sync_manager_event.dart';
+
 part 'sync_manager_state.dart';
 
 class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
@@ -39,8 +40,7 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     on<PlaybackStateUpdated>(_onPlaybackUpdated);
     on<QueueStateUpdated>(_onQueueUpdated);
     on<UpdatePlaybackPosition>(_onUpdatePlaybackPosition);
-    on<PickAndAddSongToQueue>(_onPickAndAddSong);
-    on<PickAndAddMultipleSongsToQueue>(_onPickAndAddMultipleSongs);
+    on<PickAndAddSongToQueue>(_onPickAndAddSongs);
     on<AddSongFromPath>(_onAddSongFromPath);
   }
 
@@ -200,34 +200,15 @@ class SyncManagerBloc extends Bloc<SyncManagerEvent, SyncManagerState> {
     }
   }
 
-  Future<void> _onPickAndAddSong(
+  Future<void> _onPickAndAddSongs(
     PickAndAddSongToQueue event,
-    Emitter<SyncManagerState> emit,
-  ) async {
-    try {
-      Song? song = await AudioFileService.pickSingleAudioFile(
-        _syncManager!.fileServer,
-      );
-      debugPrint(
-        'Picked song: ${song?.title}, hash: ${song?.hash}, url: ${song?.downloadUrl}',
-      );
-      if (song != null && _syncManager != null) {
-        await _syncManager!.addToQueue(song, position: event.position);
-      }
-    } catch (e) {
-      debugPrint('Error picking and adding song: $e');
-    }
-  }
-
-  Future<void> _onPickAndAddMultipleSongs(
-    PickAndAddMultipleSongsToQueue event,
     Emitter<SyncManagerState> emit,
   ) async {
     try {
       List<Song>? songs = await AudioFileService.pickAudioFiles(
         _syncManager!.fileServer,
       );
-      if (songs != null && _syncManager != null) {
+      if (_syncManager != null) {
         for (int i = 0; i < songs.length; i++) {
           int? position = event.position != null ? event.position! + i : null;
           await _syncManager!.addToQueue(songs[i], position: position);
